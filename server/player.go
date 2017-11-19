@@ -11,18 +11,18 @@ import (
 )
 
 var PlayerId2PlayerMap = &PlayerId2Player{
-	playerMap:make(map[int64]IPlayer),
+	playerMap: make(map[int64]IPlayer),
 }
 
 type PlayerId2Player struct {
-	mu sync.RWMutex
+	mu        sync.RWMutex
 	playerMap map[int64]IPlayer
 }
 
 func (p PlayerId2Player) Get(playerId int64) (IPlayer, bool) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	player,ok := p.playerMap[playerId]
+	player, ok := p.playerMap[playerId]
 	return player, ok
 }
 
@@ -50,8 +50,8 @@ func (p PlayerId2Player) Keys() []int64 {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	keys := make([]int64, len(p.playerMap))
-	i:=0
-	for k := range p.playerMap  {
+	i := 0
+	for k := range p.playerMap {
 		keys[i] = k
 		i++
 	}
@@ -62,8 +62,8 @@ func (p PlayerId2Player) Values() []IPlayer {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	values := make([]IPlayer, len(p.playerMap))
-	i:=0
-	for _,v := range p.playerMap  {
+	i := 0
+	for _, v := range p.playerMap {
 		values[i] = v
 		i++
 	}
@@ -73,7 +73,7 @@ func (p PlayerId2Player) Values() []IPlayer {
 func (p PlayerId2Player) SendMessage(playerId int64, msg *protocol.Message) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	if player,ok := p.playerMap[playerId];ok {
+	if player, ok := p.playerMap[playerId]; ok {
 		player.Session().SendResponse(msg)
 		protocol.FreeMsg(msg)
 	} else {
@@ -81,13 +81,13 @@ func (p PlayerId2Player) SendMessage(playerId int64, msg *protocol.Message) {
 	}
 }
 
-func(p *PlayerId2Player) AutoSave2DB() {
+func (p *PlayerId2Player) AutoSave2DB() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	for _,v:=range p.playerMap  {
-		v.SaveAll()
-		if v.Session().Status() == NOT_CONNECTED {
-			delete(p.playerMap, v.PlayerId())
+	for _, player := range p.playerMap {
+		player.SaveAll()
+		if player.Session().Status() == NOT_CONNECTED || player.Session().Status() == CLOSED {
+			delete(p.playerMap, player.(*Player).PlayerId)
 		}
 	}
 }
@@ -96,7 +96,6 @@ func(p *PlayerId2Player) AutoSave2DB() {
 func AutoSaveDisConnectedPlayer() {
 	PlayerId2PlayerMap.AutoSave2DB()
 }
-
 
 type Status byte
 
@@ -110,7 +109,7 @@ const (
 
 type ISession interface {
 	UpdateStatus(status Status)
-	Close(onClose func()) error  // 不要在onClose执行耗时任务
+	Close(onClose func()) error // 不要在onClose执行耗时任务
 	Status() Status
 	SessionId() string
 	Createtime() int64
@@ -120,16 +119,10 @@ type ISession interface {
 }
 
 type IPlayer interface {
-	SetUserId(userId int64)
-	SetPlayerId(playerId int64)
-	SetPlayerName(playerName string)
-	UserId() int64
-	PlayerId() int64
-	PlayerName() string
 	Session() ISession
 	Login(token string)
 	Logout(onlogout func()) error
-	DispatchMsg(msgId uint32, payload interface{}) (interface{}, error)
+	/*DispatchMsg(msgId uint32, payload interface{}) (interface{}, error)*/
 	SaveAll()
 }
 
@@ -174,7 +167,7 @@ func (s Session) Createtime() int64 {
 func (s *Session) Close(onClose func()) error {
 	onClose()
 	s.isShuttingDown = true
-	s.UpdateStatus(NOT_CONNECTED)
+	s.UpdateStatus(CLOSED)
 	err := s.conn.Close()
 	if err != nil {
 		return err
@@ -195,10 +188,11 @@ func (s *Session) ReadRequest(r io.Reader) (*protocol.Message, error) {
 
 type Player struct {
 	session    ISession
-	userId     int64
-	playerId   int64
-	playerName string
-	components sync.Map
+	UserId     int64
+	PlayerId   int64
+	PlayerName string
+	Sex        byte
+	//components sync.Map
 }
 
 func NewPlayer(session ISession) IPlayer {
@@ -207,48 +201,29 @@ func NewPlayer(session ISession) IPlayer {
 		session: session,
 	}
 }
-
-func (p *Player) SetUserId(userId int64) {
-	p.userId = userId
-}
-func (p *Player) SetPlayerId(playerId int64) {
-	p.playerId = playerId
-}
-func (p *Player) SetPlayerName(playerName string) {
-	p.playerName = playerName
-}
-func (p Player) UserId() int64 {
-	return p.userId
-}
-func (p Player) PlayerId() int64 {
-	return p.playerId
-}
-func (p Player) PlayerName() string {
-	return p.playerName
-}
 func (p *Player) Session() ISession {
 	return p.session
 }
 func (p *Player) Login(token string) {
 	// decode userId and playerId
-	p.userId = 1
-	p.playerId = 1
+	p.UserId = 1
+	p.PlayerId = 1
 }
 func (p *Player) Logout(onlogout func()) error {
 	onlogout()
-	p.session.UpdateStatus(NOT_CONNECTED)
+	p.session.UpdateStatus(CLOSED)
 
 	p.SaveAll()
-	PlayerId2PlayerMap.Remove(p.playerId)  // todo 定时任务删除
+	PlayerId2PlayerMap.Remove(p.PlayerId) // todo 定时任务删除
 
 	log.Println("player log out")
 	return nil
 }
 
-func (p *Player) DispatchMsg(msgId uint32, payload interface{}) (interface{}, error) {
+/*func (p *Player) DispatchMsg(msgId uint32, payload interface{}) (interface{}, error) {
 	log.Println("receive msg -> ", msgId, " ", payload)
 	return nil, nil
-}
+}*/
 func (p Player) SaveAll() {
-	log.Println("save all data to db. -> ", p.playerId)
+	log.Println("save all data to db. -> ", p.PlayerId)
 }

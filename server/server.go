@@ -12,10 +12,8 @@ import (
 	"io"
 	"sibo/protocol"
 	"sibo/share"
-	"fmt"
-	"reflect"
 	"errors"
-	"math/rand"
+	"fmt"
 )
 
 var ErrServerClosed = errors.New("sibo: Server closed")
@@ -120,8 +118,6 @@ func (s *Server) serveSession(session ISession) {
 	log.Println("serve session -> ", session.SessionId())
 	player := NewPlayer(session)
 	//atomic.AddInt32(&s.inShutdown, 5)
-	player.SetPlayerId(int64(rand.Uint32()))
-	PlayerId2PlayerMap.Put(player.PlayerId(), player)
 	defer func() {  // execute when client disconnect from server
 		if err := recover(); err != nil {
 			const size = 64 << 10
@@ -172,6 +168,9 @@ func (s *Server) serveSession(session ISession) {
 					log.Println("session close by client : "+session.SessionId())
 				})
 			} else if strings.Contains(err.Error(), "use of closed network connection") {
+				session.Close(func() {
+					log.Println("use of closed network connection : "+session.SessionId())
+				})
 				log.Printf("sibo: connection %s is closed", session.Conn().RemoteAddr().String())
 			} else {
 				log.Printf("sibo: failed to read request: %v", err)
@@ -206,25 +205,22 @@ func (s *Server) handleRequest(player IPlayer, req *protocol.Message) (res *prot
 	res = req.Clone()
 	res.SetMessageType(protocol.Response)
 
-	codec := share.Codecs[req.SerializeType()]
-	if codec == nil {
+	codec,ok := share.Codecs[req.SerializeType()]
+	if !ok {
 		err = fmt.Errorf("can not find codec for %d", req.SerializeType())
 		handleError(res, err)
 		return res, err
 	}
-
 	mmId := req.ModuleMessageID()
-	t := reflect.ValueOf(protocol.PayloadTypeMap[mmId]).Type()
-	payload := reflect.New(t).Elem().Interface()
+	payload := RequestMap[mmId]()
 	err = codec.Decode(req.Payload, payload)
-
 	if err != nil {
 		return handleError(res, err)
 	}
-	payloadRes, err := player.DispatchMsg(mmId, payload)
+	payloadRes, err := ProcessorMap[mmId].Process(player, payload)
 
 	if !req.IsOneway() {
-		data, err := codec.Encode(payloadRes) // todo
+		data, err := codec.Encode(payloadRes)
 		if err != nil {
 			handleError(res, err)
 			return res, err
@@ -270,7 +266,7 @@ func (s *Server) saveAllPlayer2DB() {
 			go func(player IPlayer) {
 				defer s.waitGroup.Done()
 				log.Println("task start")
-				time.Sleep(5*time.Second)
+				time.Sleep(3*time.Second)
 				player.SaveAll()
 				log.Println("task end")
 			}(player)

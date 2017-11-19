@@ -1,8 +1,8 @@
 package share
 
 import (
-	"sibo/protocol"
 	"sibo/codec"
+	"sibo/protocol"
 )
 
 var (
