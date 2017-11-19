@@ -8,6 +8,7 @@ import (
 	pb "github.com/golang/protobuf/proto"
 	"github.com/vmihailenco/msgpack"
 	"gopkg.in/mgo.v2/bson"
+	"errors"
 )
 
 type Codec interface {
@@ -25,6 +26,9 @@ func (c ByteCodec) Encode(i interface{}) ([]byte, error) {
 }
 
 func (c ByteCodec) Decode(data []byte, i interface{}) error {
+	if _,ok:=i.([]byte);!ok {
+		return errors.New("i is not type of []byte")
+	}
 	reflect.ValueOf(i).SetBytes(data)
 	return nil
 }
