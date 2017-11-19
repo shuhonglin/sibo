@@ -119,6 +119,7 @@ type ISession interface {
 }
 
 type IPlayer interface {
+	SetPosition(x, y, z int)
 	Session() ISession
 	Login(token string)
 	Logout(onlogout func()) error
@@ -192,6 +193,8 @@ type Player struct {
 	PlayerId   int64
 	PlayerName string
 	Sex        byte
+	Pos        [3]int
+	Token      string
 	//components sync.Map
 }
 
@@ -200,6 +203,12 @@ func NewPlayer(session ISession) IPlayer {
 	return &Player{
 		session: session,
 	}
+}
+
+func (p *Player) SetPosition(x, y, z int) {
+	p.Pos[0] = x
+	p.Pos[1] = y
+	p.Pos[2] = z
 }
 func (p *Player) Session() ISession {
 	return p.session

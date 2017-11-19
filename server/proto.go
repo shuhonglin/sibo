@@ -14,7 +14,7 @@ var (
 )
 
 var (
-	RequestMap = map[uint32]func()interface{} {
+	RequestMap = map[uint32]func() interface{}{
 		CREATE_PLAYER: func() interface{} {
 			return &CreatePlayerRequest{
 			}
@@ -29,12 +29,11 @@ var (
 		LOGIN: &LoginRequest{},
 	}*/
 
-	ProcessorMap = map[uint32]Processor {
+	ProcessorMap = map[uint32]Processor{
 		CREATE_PLAYER: new(CreatePlayerProcessor),
 		LOGIN:         new(LoginProcessor),
 	}
 )
-
 
 type Processor interface {
 	Process(player IPlayer, req interface{}) (interface{}, error)
@@ -43,38 +42,37 @@ type Processor interface {
 type LoginProcessor uint32
 type CreatePlayerProcessor uint32
 
-func(p *LoginProcessor) Process(player IPlayer, req interface{}) (interface{}, error) {
-	loginMsg,ok := req.(*LoginRequest)
+func (p *LoginProcessor) Process(player IPlayer, req interface{}) (interface{}, error) {
+	loginMsg, ok := req.(*LoginRequest)
 	if !ok {
 		return nil, errors.New("request type transform error!")
 	}
 	log.Println(loginMsg.Token)
 	// todo
-	loginResponse := &LoginResponse {
-		Token:time.Now().String(),
+	loginResponse := &LoginResponse{
+		Token: time.Now().String(),
 	}
 	return loginResponse, nil
 }
 
-
-func(p *CreatePlayerProcessor) Process(player IPlayer, req interface{}) (interface{}, error) {
-	createPlayerRequest,ok := req.(*CreatePlayerRequest)
+func (p *CreatePlayerProcessor) Process(player IPlayer, req interface{}) (interface{}, error) {
+	createPlayerRequest, ok := req.(*CreatePlayerRequest)
 	if !ok {
 		return nil, errors.New("request type transform error!")
 	}
 	log.Println(createPlayerRequest.UserId, createPlayerRequest.PlayerName, createPlayerRequest.Sex)
-	player.(*Player).PlayerId=int64(rand.Int())
-	player.(*Player).PlayerName= createPlayerRequest.PlayerName
-	player.(*Player).UserId=createPlayerRequest.UserId
-	player.(*Player).Sex=createPlayerRequest.Sex
+	player.(*Player).PlayerId = int64(rand.Int())
+	player.(*Player).PlayerName = createPlayerRequest.PlayerName
+	player.(*Player).UserId = createPlayerRequest.UserId
+	player.(*Player).Sex = createPlayerRequest.Sex
 	// todo
-	createPlayerResponse := &CreatePlayerResponse {
-		PlayerId:player.(*Player).PlayerId,
+	createPlayerResponse := &CreatePlayerResponse{
+		PlayerId: player.(*Player).PlayerId,
+		Token:    player.(*Player).Token,
 	}
 	log.Println(player)
 	return createPlayerResponse, nil
 }
-
 
 type CreatePlayerRequest struct {
 	UserId     int64
@@ -92,8 +90,8 @@ type LoginResponse struct {
 
 type CreatePlayerResponse struct {
 	PlayerId int64
+	Token    string
 }
-
 
 func EncodeMessageID(moduleId byte, messageID uint32) (uint32, error) {
 	if (messageID >> 24) > 0 {
