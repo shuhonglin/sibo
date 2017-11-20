@@ -4,6 +4,7 @@ import (
 	"sibo/codec"
 	"sibo/protocol"
 	"errors"
+	"sibo/util"
 )
 
 var (
@@ -14,7 +15,17 @@ var (
 		protocol.MsgPack: &codec.MsgpackCodec{},
 		protocol.Bson: &codec.BsonCodec{},
 	}
+
+	Compression = map[protocol.CompressType]util.Compressor {
+		protocol.Gzip: &util.Gzip{},
+		protocol.Zlib: &util.Zip{},
+		protocol.None: &util.None{},
+	}
 )
+
+func RegisterCompressor(t protocol.CompressType, c util.Compressor) {
+	Compression[t] = c
+}
 
 func RegisterCodec(t protocol.SerializeType, c codec.Codec) {
 	Codecs[t] = c

@@ -7,8 +7,25 @@ import (
 	"compress/zlib"
 )
 
+type Compressor interface {
+	Compress(data []byte) ([]byte, error)
+	Decompress(data []byte) ([]byte, error)
+}
+
+type None struct {}
+
+func (n None) Decompress(data []byte) ([]byte, error) {
+	return data, nil
+}
+
+func (n None) Compress(data []byte) ([]byte, error) {
+	return data, nil
+}
+
+type Gzip struct{}
+
 // Unzip unzips data.
-func UnGzip(data []byte) ([]byte, error) {
+func (g Gzip) Decompress(data []byte) ([]byte, error) {
 	gr, err := gzip.NewReader(bytes.NewBuffer(data))
 	if err != nil {
 		return nil, err
@@ -22,7 +39,7 @@ func UnGzip(data []byte) ([]byte, error) {
 }
 
 // Zip zips data.
-func Gzip(data []byte) ([]byte, error) {
+func (g Gzip) Compress(data []byte) ([]byte, error) {
 	var buf bytes.Buffer
 	w := gzip.NewWriter(&buf)
 	_, err := w.Write(data)
@@ -41,8 +58,10 @@ func Gzip(data []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+type Zip struct{}
+
 // Unzip unzips data.
-func UnzipByZlib(data []byte) ([]byte, error) {
+func (z Zip) Decompress(data []byte) ([]byte, error) {
 	zr, err := zlib.NewReader(bytes.NewBuffer(data))
 	if err != nil {
 		return nil, err
@@ -56,7 +75,7 @@ func UnzipByZlib(data []byte) ([]byte, error) {
 }
 
 // Zip zips data.
-func ZipByZlib(data []byte) ([]byte, error) {
+func (z Zip) Compress(data []byte) ([]byte, error) {
 	var buf bytes.Buffer
 	w := zlib.NewWriter(&buf)
 	_, err := w.Write(data)

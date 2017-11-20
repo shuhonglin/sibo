@@ -215,16 +215,30 @@ func (s *Server) handleRequest(player IPlayer, req *protocol.Message) (res *prot
 		handleError(res, err)
 		return res, err
 	}
+	compresion, ok := share.Compression[req.CompressType()]
+	if !ok {
+		err = fmt.Errorf("can not find compress type for %d", req.CompressType())
+		handleError(res, err)
+		return res, err
+	}
+
+	payload, err := compresion.Decompress(req.Payload)
+	if err != nil {
+		err = fmt.Errorf("UnZip error for compress type %d", req.CompressType())
+		handleError(res, err)
+		return res, err
+	}
+
 	mmId := req.ModuleMessageID()
-	if _, ok := proto.RequestMap[mmId];!ok {
+	if _, ok := proto.RequestMap[mmId]; !ok {
 		handleError(res, errors.New("messageID not exist"))
 	}
-	payload:= proto.RequestMap[mmId]()
-	err = codec.Decode(req.Payload, payload)
+	request := proto.RequestMap[mmId]()
+	err = codec.Decode(payload, request)
 	if err != nil {
 		return handleError(res, err)
 	}
-	payloadRes, err := ProcessorMap[mmId].Process(player, payload)
+	payloadRes, err := ProcessorMap[mmId].Process(player, request)
 
 	if !req.IsOneway() {
 		data, err := codec.Encode(payloadRes)
@@ -232,7 +246,12 @@ func (s *Server) handleRequest(player IPlayer, req *protocol.Message) (res *prot
 			handleError(res, err)
 			return res, err
 		}
-		res.Payload = data
+		payload, err := compresion.Compress(data)
+		if err != nil {
+			handleError(res, err)
+			return res, err
+		}
+		res.Payload = payload
 	}
 	return res, nil
 }
