@@ -58,6 +58,19 @@ func (p PlayerId2Player) Keys() []int64 {
 	return keys
 }
 
+func (p PlayerId2Player) Len() int {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return len(p.playerMap)
+}
+
+func (p PlayerId2Player) ConstainsKey(playerId int64) bool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	_,ok := p.playerMap[playerId]
+	return ok
+}
+
 func (p PlayerId2Player) Values() []IPlayer {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
@@ -90,11 +103,6 @@ func (p *PlayerId2Player) AutoSave2DB() {
 			delete(p.playerMap, player.(*Player).PlayerId)
 		}
 	}
-}
-
-// 定时任务存储玩家数据
-func AutoSaveDisConnectedPlayer() {
-	PlayerId2PlayerMap.AutoSave2DB()
 }
 
 type Status byte
@@ -234,5 +242,8 @@ func (p *Player) Logout(onlogout func()) error {
 	return nil, nil
 }*/
 func (p Player) SaveAll() {
-	log.Println("save all data to db. -> ", p.PlayerId)
+	log.Println("save all data to db. -> ", p.PlayerId, p.session.SessionId())
+	if p.session.Status() == CLOSED || p.session.Status()==NOT_CONNECTED {
+		PlayerId2PlayerMap.Remove(p.PlayerId)
+	}
 }

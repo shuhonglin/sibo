@@ -14,6 +14,8 @@ import (
 	"sibo/share"
 	"errors"
 	"fmt"
+	"sibo/proto"
+	"github.com/robfig/cron"
 )
 
 var ErrServerClosed = errors.New("sibo: Server closed")
@@ -33,16 +35,19 @@ type Server struct {
 	mu            sync.RWMutex
 	activeSession map[ISession]struct{}
 	doneChan      chan struct{}
-	inShutdown        int32     // accessed atomically (non-zero means we're in Shutdown)
+	inShutdown    int32 // accessed atomically (non-zero means we're in Shutdown)
 
 	// TLSConfig for creating tls tcp connection.
 	tlsConfig *tls.Config
 	waitGroup *sync.WaitGroup
+
+	cron *cron.Cron
 }
 
 func NewServer() *Server {
 	return &Server{
-		waitGroup:&sync.WaitGroup{},
+		waitGroup: &sync.WaitGroup{},
+		cron:      cron.New(),
 	}
 }
 
@@ -62,6 +67,8 @@ func (s *Server) Serve(network, address string) (err error) {
 	} else {
 		ln, err = tls.Listen("tcp", address, s.tlsConfig)
 	}
+	s.cron.Start()
+	s.scheduleSavePlayer2DB() // start save job
 	return s.serveListener(ln)
 }
 
@@ -118,7 +125,7 @@ func (s *Server) serveSession(session ISession) {
 	log.Println("serve session -> ", session.SessionId())
 	player := NewPlayer(session)
 	//atomic.AddInt32(&s.inShutdown, 5)
-	defer func() {  // execute when client disconnect from server
+	defer func() { // execute when client disconnect from server
 		if err := recover(); err != nil {
 			const size = 64 << 10
 			buf := make([]byte, size)
@@ -164,17 +171,14 @@ func (s *Server) serveSession(session ISession) {
 			if err == io.EOF {
 				//player.SaveAll()
 				log.Printf("client has closed this connection: %s", session.Conn().RemoteAddr().String())
-				session.Close(func() {
-					log.Println("session close by client : "+session.SessionId())
-				})
 			} else if strings.Contains(err.Error(), "use of closed network connection") {
-				session.Close(func() {
-					log.Println("use of closed network connection : "+session.SessionId())
-				})
 				log.Printf("sibo: connection %s is closed", session.Conn().RemoteAddr().String())
 			} else {
 				log.Printf("sibo: failed to read request: %v", err)
 			}
+			session.Close(func() {
+				log.Println("session close : " + session.SessionId())
+			})
 			return
 		}
 		if s.writeTimeout != 0 {
@@ -205,14 +209,17 @@ func (s *Server) handleRequest(player IPlayer, req *protocol.Message) (res *prot
 	res = req.Clone()
 	res.SetMessageType(protocol.Response)
 
-	codec,ok := share.Codecs[req.SerializeType()]
+	codec, ok := share.Codecs[req.SerializeType()]
 	if !ok {
 		err = fmt.Errorf("can not find codec for %d", req.SerializeType())
 		handleError(res, err)
 		return res, err
 	}
 	mmId := req.ModuleMessageID()
-	payload := RequestMap[mmId]()
+	if _, ok := proto.RequestMap[mmId];!ok {
+		handleError(res, errors.New("messageID not exist"))
+	}
+	payload:= proto.RequestMap[mmId]()
 	err = codec.Decode(req.Payload, payload)
 	if err != nil {
 		return handleError(res, err)
@@ -239,9 +246,9 @@ func (s *Server) Close() error {
 	}
 	s.mu.Unlock()
 
+	s.cron.Stop() // stop schedule job
 	s.saveAllPlayer2DB()
 	s.closeSessions()
-
 	s.waitGroup.Wait()
 	return err
 }
@@ -251,28 +258,33 @@ func (s *Server) closeSessions() {
 	defer s.mu.Unlock()
 	for session := range s.activeSession {
 		session.Close(func() {
-			log.Println("session close on by server: "+session.SessionId())
+			log.Println("session close on by server: " + session.SessionId())
 		})
 		delete(s.activeSession, session)
 	}
 }
 
+// 定时任务存储玩家数据
+func (s *Server) scheduleSavePlayer2DB() {
+	spec := "0 */2 * * * ?"
+	s.cron.AddJob(spec, new(SavePlayerJob))
+}
+
 func (s *Server) saveAllPlayer2DB() {
-	keys := PlayerId2PlayerMap.Keys()
-	for _,k := range keys {
-		player,ok := PlayerId2PlayerMap.Get(k)
-		if ok {
+	if PlayerId2PlayerMap.Len() > 0 {
+		for _, player := range PlayerId2PlayerMap.Values() {
+			//player, ok := PlayerId2PlayerMap.Get(k)
 			s.waitGroup.Add(1)
 			go func(player IPlayer) {
 				defer s.waitGroup.Done()
 				log.Println("task start")
-				time.Sleep(3*time.Second)
+				time.Sleep(2 * time.Second)
 				player.SaveAll()
 				log.Println("task end")
 			}(player)
 		}
+		PlayerId2PlayerMap.Clear()
 	}
-	PlayerId2PlayerMap.Clear()
 }
 
 func (s *Server) closeDoneChan() {
