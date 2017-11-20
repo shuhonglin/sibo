@@ -8,6 +8,9 @@ import (
 	"sibo/protocol"
 	"log"
 	"io"
+	"reflect"
+	"sibo/component"
+	"sibo/entity"
 )
 
 var PlayerId2PlayerMap = &PlayerId2Player{
@@ -67,7 +70,7 @@ func (p PlayerId2Player) Len() int {
 func (p PlayerId2Player) ConstainsKey(playerId int64) bool {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	_,ok := p.playerMap[playerId]
+	_, ok := p.playerMap[playerId]
 	return ok
 }
 
@@ -100,7 +103,7 @@ func (p *PlayerId2Player) AutoSave2DB() {
 	for _, player := range p.playerMap {
 		player.SaveAll()
 		if player.Session().Status() == NOT_CONNECTED || player.Session().Status() == CLOSED {
-			delete(p.playerMap, player.(*Player).PlayerId)
+			delete(p.playerMap, player.(*PlayerSession).PlayerId)
 		}
 	}
 }
@@ -132,7 +135,10 @@ type IPlayer interface {
 	Login(token string)
 	Logout(onlogout func()) error
 	/*DispatchMsg(msgId uint32, payload interface{}) (interface{}, error)*/
-	SaveAll()
+	SaveAll() error
+	SaveComponent(t reflect.Type) error
+	GetComponent(t reflect.Type) component.IComponent
+	CreateIfNotExist(t reflect.Type) component.IComponent
 }
 
 type Session struct {
@@ -195,38 +201,35 @@ func (s *Session) ReadRequest(r io.Reader) (*protocol.Message, error) {
 	return req, err
 }
 
-type Player struct {
+type PlayerSession struct {
+	entity.Player
 	session    ISession
-	UserId     int64
-	PlayerId   int64
-	PlayerName string
-	Sex        byte
-	Pos        [3]int
-	Token      string
+	components map[reflect.Type]component.IComponent
 	//components sync.Map
 }
 
 func NewPlayer(session ISession) IPlayer {
 	session.UpdateStatus(CONNECTED)
-	return &Player{
-		session: session,
+	return &PlayerSession{
+		session:    session,
+		components: make(map[reflect.Type]component.IComponent),
 	}
 }
 
-func (p *Player) SetPosition(x, y, z int) {
+func (p *PlayerSession) SetPosition(x, y, z int) {
 	p.Pos[0] = x
 	p.Pos[1] = y
 	p.Pos[2] = z
 }
-func (p *Player) Session() ISession {
+func (p *PlayerSession) Session() ISession {
 	return p.session
 }
-func (p *Player) Login(token string) {
+func (p *PlayerSession) Login(token string) {
 	// decode userId and playerId
 	p.UserId = 1
 	p.PlayerId = 1
 }
-func (p *Player) Logout(onlogout func()) error {
+func (p *PlayerSession) Logout(onlogout func()) error {
 	onlogout()
 	p.session.UpdateStatus(CLOSED)
 
@@ -241,9 +244,33 @@ func (p *Player) Logout(onlogout func()) error {
 	log.Println("receive msg -> ", msgId, " ", payload)
 	return nil, nil
 }*/
-func (p Player) SaveAll() {
-	log.Println("save all data to db. -> ", p.PlayerId, p.session.SessionId())
-	if p.session.Status() == CLOSED || p.session.Status()==NOT_CONNECTED {
-		PlayerId2PlayerMap.Remove(p.PlayerId)
+func (p PlayerSession) SaveAll() error {
+	log.Println("save all component to db. -> ", p.PlayerId, p.session.SessionId())
+	var err error
+	for k, cn := range p.components {
+		err = cn.Save2DB()
+		if err != nil {
+			log.Println("unable to save component ", k.String())
+		}
 	}
+	return nil
+}
+
+func (p PlayerSession) SaveComponent(t reflect.Type) error {
+	log.Println("save single component to db. -> ", p.PlayerId, p.session.SessionId())
+	return p.components[t].Save2DB()
+}
+
+func (p *PlayerSession) GetComponent(t reflect.Type) component.IComponent {
+	return p.components[t]
+}
+func (p *PlayerSession) CreateIfNotExist(t reflect.Type) component.IComponent {
+	if _, ok := p.components[t]; !ok {
+		cn := reflect.New(t).Interface()
+		p.components[t], ok = cn.(component.IComponent)
+		if !ok {
+			log.Println("can not cast t to IComponent")
+		}
+	}
+	return p.components[t]
 }

@@ -215,14 +215,14 @@ func (s *Server) handleRequest(player IPlayer, req *protocol.Message) (res *prot
 		handleError(res, err)
 		return res, err
 	}
-	compresion, ok := share.Compression[req.CompressType()]
+	compression, ok := share.Compression[req.CompressType()]
 	if !ok {
 		err = fmt.Errorf("can not find compress type for %d", req.CompressType())
 		handleError(res, err)
 		return res, err
 	}
 
-	payload, err := compresion.Decompress(req.Payload)
+	payload, err := compression.Decompress(req.Payload)
 	if err != nil {
 		err = fmt.Errorf("UnZip error for compress type %d", req.CompressType())
 		handleError(res, err)
@@ -246,7 +246,7 @@ func (s *Server) handleRequest(player IPlayer, req *protocol.Message) (res *prot
 			handleError(res, err)
 			return res, err
 		}
-		payload, err := compresion.Compress(data)
+		payload, err := compression.Compress(data)
 		if err != nil {
 			handleError(res, err)
 			return res, err
@@ -285,8 +285,8 @@ func (s *Server) closeSessions() {
 
 // 定时任务存储玩家数据
 func (s *Server) scheduleSavePlayer2DB() {
-	spec := "0 */2 * * * ?"
-	s.cron.AddJob(spec, new(SavePlayerJob))
+	//spec := "0 */2 * * * ?"
+	s.cron.Schedule(cron.Every(2*time.Minute), new(SavePlayerJob))
 }
 
 func (s *Server) saveAllPlayer2DB() {

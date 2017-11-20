@@ -46,16 +46,16 @@ func (p *CreatePlayerProcessor) Process(player IPlayer, req interface{}) (interf
 		return nil, errors.New("request type transform error!")
 	}
 	log.Println(createPlayerRequest.UserId, createPlayerRequest.PlayerName, createPlayerRequest.Sex)
-	player.(*Player).PlayerId = int64(rand.Int())
-	player.(*Player).PlayerName = createPlayerRequest.PlayerName
-	player.(*Player).UserId = createPlayerRequest.UserId
-	player.(*Player).Sex = createPlayerRequest.Sex
+	player.(*PlayerSession).PlayerId = int64(rand.Int())
+	player.(*PlayerSession).PlayerName = createPlayerRequest.PlayerName
+	player.(*PlayerSession).UserId = createPlayerRequest.UserId
+	player.(*PlayerSession).Sex = createPlayerRequest.Sex
 
-	PlayerId2PlayerMap.Put(player.(*Player).PlayerId, player)
+	PlayerId2PlayerMap.Put(player.(*PlayerSession).PlayerId, player)
 	// todo
 	createPlayerResponse := &proto.CreatePlayerResponse{
-		PlayerId: player.(*Player).PlayerId,
-		Token:    player.(*Player).Token,
+		PlayerId: player.(*PlayerSession).PlayerId,
+		Token:    player.(*PlayerSession).Token,
 	}
 	log.Println(player)
 	return createPlayerResponse, nil
