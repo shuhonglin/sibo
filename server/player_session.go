@@ -6,7 +6,7 @@ import (
 	"github.com/satori/go.uuid"
 	"time"
 	"sibo/protocol"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"io"
 	"reflect"
 	"sibo/component"
@@ -132,10 +132,12 @@ type ISession interface {
 type IPlayer interface {
 	SetPosition(x, y, z int)
 	Session() ISession
+	SetSession(session ISession)
 	Login(token string)
 	Logout(onlogout func()) error
 	/*DispatchMsg(msgId uint32, payload interface{}) (interface{}, error)*/
 	SaveAll() error
+	InitFromDB(player int64) error
 	SaveComponent(t reflect.Type) error
 	GetComponent(t reflect.Type) component.IComponent
 	CreateIfNotExist(t reflect.Type) component.IComponent
@@ -143,6 +145,7 @@ type IPlayer interface {
 
 type Session struct {
 	status         Status
+	mu             sync.Mutex
 	sessionId      string
 	createtime     int64
 	isShuttingDown bool
@@ -164,10 +167,14 @@ func (s *Session) Conn() net.Conn {
 }
 
 func (s *Session) UpdateStatus(status Status) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.status = status
 }
 
 func (s Session) Status() Status {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.status
 }
 
@@ -224,6 +231,10 @@ func (p *PlayerSession) SetPosition(x, y, z int) {
 func (p *PlayerSession) Session() ISession {
 	return p.session
 }
+
+func (p *PlayerSession) SetSession(session ISession) {
+	p.session = session
+}
 func (p *PlayerSession) Login(token string) {
 	// decode userId and playerId
 	p.UserId = 1
@@ -231,13 +242,13 @@ func (p *PlayerSession) Login(token string) {
 }
 func (p *PlayerSession) Logout(onlogout func()) error {
 	onlogout()
-	p.session.UpdateStatus(CLOSED)
 
 	if PlayerId2PlayerMap.ConstainsKey(p.PlayerId) {
-		go p.SaveAll()
-		PlayerId2PlayerMap.Remove(p.PlayerId) // todo 定时任务删除
+		p.SaveAll()
+		//PlayerId2PlayerMap.Remove(p.PlayerId) // todo 定时任务删除
 		log.Println("player logout")
 	}
+	p.session.UpdateStatus(CLOSED)
 	return nil
 }
 
@@ -254,6 +265,11 @@ func (p PlayerSession) SaveAll() error {
 			log.Println("unable to save component ", k.String())
 		}
 	}
+	return nil
+}
+
+func (p *PlayerSession) InitFromDB(player int64) error {
+	log.Info("init player from database ", player)
 	return nil
 }
 

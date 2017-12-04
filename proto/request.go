@@ -2,6 +2,9 @@ package proto
 
 var (
 	RequestMap = map[uint32]func() interface{}{
+		RECONNECT: func() interface{} {
+			return &ReconnectRequest{}
+		},
 		CREATE_PLAYER: func() interface{} {
 			return &CreatePlayerRequest{
 			}
@@ -20,5 +23,9 @@ type CreatePlayerRequest struct {
 }
 
 type LoginRequest struct {
+	Token string
+}
+
+type ReconnectRequest struct {
 	Token string
 }

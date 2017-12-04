@@ -1,5 +1,9 @@
 package proto
 
+type ReconnectResponse struct {
+
+}
+
 type LoginResponse struct {
 	Token string
 }
