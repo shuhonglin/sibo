@@ -233,10 +233,11 @@ func (p *PlayerSession) Logout(onlogout func()) error {
 	onlogout()
 	p.session.UpdateStatus(CLOSED)
 
-	p.SaveAll()
-	PlayerId2PlayerMap.Remove(p.PlayerId) // todo 定时任务删除
-
-	log.Println("player log out")
+	if PlayerId2PlayerMap.ConstainsKey(p.PlayerId) {
+		go p.SaveAll()
+		PlayerId2PlayerMap.Remove(p.PlayerId) // todo 定时任务删除
+		log.Println("player logout")
+	}
 	return nil
 }
 

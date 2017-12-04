@@ -1,6 +1,6 @@
 package server
 
-import "log"
+import log "github.com/sirupsen/logrus"
 
 type SavePlayerJob int
 

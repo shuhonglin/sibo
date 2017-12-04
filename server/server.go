@@ -5,7 +5,7 @@ import (
 	"time"
 	"sync"
 	"crypto/tls"
-	"log"
+	log "github.com/sirupsen/logrus"
 	"runtime"
 	"bufio"
 	"strings"
@@ -16,11 +16,33 @@ import (
 	"fmt"
 	"sibo/proto"
 	"github.com/robfig/cron"
+	"os"
 )
+
+func init() {
+	// Log as JSON instead of the default ASCII formatter.
+	log.SetFormatter(&log.JSONFormatter{})
+
+	// Output to stdout instead of the default stderr
+	// Can be any io.Writer, see below for File example
+	// log.SetOutput(os.Stdout)
+
+	file, err := os.OpenFile("logrus.log", os.O_CREATE|os.O_WRONLY, 0666)
+	if err == nil {
+		log.SetOutput(file)
+	} else {
+		log.Info("Failed to log to file, using default stderr")
+	}
+
+	// Only log the warning severity or above.
+	//log.SetLevel(log.WarnLevel)
+	log.SetLevel(log.DebugLevel)
+}
 
 var ErrServerClosed = errors.New("sibo: Server closed")
 
 var shutdownPollInterval = 500 * time.Millisecond
+var schuduleInterval = 1 * time.Minute
 
 const (
 	ReaderBufferSize = 1024
@@ -28,9 +50,10 @@ const (
 )
 
 type Server struct {
-	ln           net.Listener
-	readTimeout  time.Duration
-	writeTimeout time.Duration
+	ln                   net.Listener
+	readTimeout          time.Duration
+	writeTimeout         time.Duration
+	scheduleSaveDuration time.Duration
 
 	mu            sync.RWMutex
 	activeSession map[ISession]struct{}
@@ -46,8 +69,9 @@ type Server struct {
 
 func NewServer() *Server {
 	return &Server{
-		waitGroup: &sync.WaitGroup{},
-		cron:      cron.New(),
+		waitGroup:            &sync.WaitGroup{},
+		cron:                 cron.New(),
+		scheduleSaveDuration: schuduleInterval,
 	}
 }
 
@@ -58,6 +82,10 @@ func (s *Server) Address() net.Addr {
 		return nil
 	}
 	return s.ln.Addr()
+}
+
+func (s *Server) SetScheduleSaveDuration(t time.Duration) {
+	s.scheduleSaveDuration = t
 }
 
 func (s *Server) Serve(network, address string) (err error) {
@@ -168,17 +196,21 @@ func (s *Server) serveSession(session ISession) {
 		}
 		req, err := session.ReadRequest(r)
 		if err != nil {
-			if err == io.EOF {
+			if err == io.EOF { // client close conn
 				//player.SaveAll()
 				log.Printf("client has closed this connection: %s", session.Conn().RemoteAddr().String())
-			} else if strings.Contains(err.Error(), "use of closed network connection") {
+			} else if strings.Contains(err.Error(), "use of closed network connection") { // server close conn
 				log.Printf("sibo: connection %s is closed", session.Conn().RemoteAddr().String())
 			} else {
 				log.Printf("sibo: failed to read request: %v", err)
 			}
-			session.Close(func() {
-				log.Println("session close : " + session.SessionId())
+			player.Logout(func() {
+				log.Println("player logout on session close")
 			})
+			/*session.Close(func() {
+				player.SaveAll()
+				log.Println("session close : " + session.SessionId())
+			})*/
 			return
 		}
 		if s.writeTimeout != 0 {
@@ -286,7 +318,7 @@ func (s *Server) closeSessions() {
 // 定时任务存储玩家数据
 func (s *Server) scheduleSavePlayer2DB() {
 	//spec := "0 */2 * * * ?"
-	s.cron.Schedule(cron.Every(2*time.Minute), new(SavePlayerJob))
+	s.cron.Schedule(cron.Every(s.scheduleSaveDuration), new(SavePlayerJob))
 }
 
 func (s *Server) saveAllPlayer2DB() {
