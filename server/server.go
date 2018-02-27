@@ -185,7 +185,7 @@ func (s *Server) serveSession(session ISession) {
 			session.Conn().SetWriteDeadline(time.Now().Add(d))
 		}
 		if err := tlsConn.Handshake(); err != nil {
-			log.Printf("rpcx: TLS handshake error from %s: %v", session.Conn().RemoteAddr(), err)
+			log.Printf("sibo: TLS handshake error from %s: %v", session.Conn().RemoteAddr(), err)
 			return
 		}
 	}
@@ -201,7 +201,7 @@ func (s *Server) serveSession(session ISession) {
 			if err == io.EOF { // client close conn
 				//player.SaveAll()
 				log.Printf("client has closed this connection: %s", session.Conn().RemoteAddr().String())
-			} else if strings.Contains(err.Error(), "use of closed network connection") { // server close conn
+			} else if strings.Contains(err.Error(), "use of closed network connection") { // (服务器主动关闭conn)conn已被conn.Close()关闭,从conn读取会报这个错误
 				log.Printf("sibo: connection %s is closed", session.Conn().RemoteAddr().String())
 			} else {
 				log.Printf("sibo: failed to read request: %v", err)
@@ -272,10 +272,10 @@ func (s *Server) handleRequest(player IPlayer, req *protocol.Message) (res *prot
 	if err != nil {
 		return handleError(res, err)
 	}
-	payloadRes, err := ProcessorMap[mmId].Process(player, request)
+	responsePayload, err := ProcessorMap[mmId].Process(player, request)
 
 	if !req.IsOneway() {
-		data, err := codec.Encode(payloadRes)
+		data, err := codec.Encode(responsePayload)
 		if err != nil {
 			handleError(res, err)
 			return res, err
