@@ -10,10 +10,10 @@ type Base struct {
 	KeyId int64
 }
 
-func (b Base)getStructMap(entity interface{}) (fieldMap map[string]interface{}) {
-	//fieldMap := make(map[string]interface{})
+func (b Base)getStructMap(entity interface{}) (map[string]interface{}) {
+	fieldMap := make(map[string]interface{})
 	t := reflect.TypeOf(entity)
-	//v := reflect.ValueOf(entity)
+	v := reflect.ValueOf(entity)
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
@@ -30,9 +30,8 @@ func (b Base)getStructMap(entity interface{}) (fieldMap map[string]interface{}) 
 		} else {
 			tagName = fieldName
 		}
-		//fieldMap[tagName] = v.FieldByName(fieldName)
-		fieldMap[tagName] = fieldName
+		fieldMap[tagName] = v.FieldByName(fieldName)
 	}
 	log.Println(fieldMap)
-	return
+	return fieldMap
 }
