@@ -10,7 +10,6 @@ import (
 	"io"
 	"reflect"
 	"sibo/component"
-	"sibo/entity"
 	"github.com/kataras/go-errors"
 )
 
@@ -36,8 +35,8 @@ type ISession interface {
 }
 
 type IPlayer interface {
-	SetPosition(x, y, z int)
 	Session() ISession
+	/*MsgChan() chan *protocol.Message*/
 	SetSession(session ISession)
 	Login(token string)
 	Logout(onlogout func()) error
@@ -46,7 +45,7 @@ type IPlayer interface {
 	InitFromDB(player int64) error
 	SaveComponent(t reflect.Type) error
 	GetComponent(t reflect.Type) (component.IComponent, error)
-	CreateIfNotExist(t reflect.Type) component.IComponent
+	CreateIfNotExist(t reflect.Type) (component.IComponent, error)
 }
 
 type Session struct {
@@ -115,9 +114,12 @@ func (s *Session) ReadRequest(r io.Reader) (*protocol.Message, error) {
 }
 
 type PlayerSession struct {
-	entity.Player
 	session    ISession
 	components map[reflect.Type]component.IComponent
+	UserId int64
+	PlayerId int64
+	Token string
+	//msgChan chan *protocol.Message
 	//components sync.Map
 }
 
@@ -126,25 +128,25 @@ func NewPlayer(session ISession) IPlayer {
 	return &PlayerSession{
 		session:    session,
 		components: make(map[reflect.Type]component.IComponent),
+		//msgChan: make(chan *protocol.Message, 1000),
 	}
 }
 
-func (p *PlayerSession) SetPosition(x, y, z int) {
-	p.Pos[0] = x
-	p.Pos[1] = y
-	p.Pos[2] = z
-}
 func (p *PlayerSession) Session() ISession {
 	return p.session
 }
+
+/*func (p *PlayerSession) MsgChan() chan *protocol.Message {
+	return p.msgChan
+}*/
 
 func (p *PlayerSession) SetSession(session ISession) {
 	p.session = session
 }
 func (p *PlayerSession) Login(token string) {
 	// decode userId and playerId
-	p.UserId = 1
-	p.PlayerId = 1
+	//p.UserId = 1
+	//p.PlayerId = 1
 }
 func (p *PlayerSession) Logout(onlogout func()) error {
 	onlogout()
@@ -152,6 +154,10 @@ func (p *PlayerSession) Logout(onlogout func()) error {
 	p.session.UpdateStatus(CLOSED)
 	if PlayerId2PlayerMap.ConstainsKey(p.PlayerId) {
 		p.SaveAll()
+		/*_, ok := <-p.msgChan
+		if ok {
+			close(p.msgChan) // 关闭消息队列
+		}*/
 		//PlayerId2PlayerMap.Remove(p.PlayerId) // todo 定时任务删除
 		log.Println("player logout")
 	}
@@ -195,18 +201,19 @@ func (p *PlayerSession) GetComponent(t reflect.Type) (component.IComponent,error
 	}
 	return p.components[t], nil
 }
-func (p *PlayerSession) CreateIfNotExist(t reflect.Type) component.IComponent {
+func (p *PlayerSession) CreateIfNotExist(t reflect.Type) (component.IComponent, error) {
 	if _, ok := p.components[t]; !ok {
 		cn := reflect.New(t).Interface()
 		p.components[t], ok = cn.(component.IComponent)
 		if !ok {
 			log.Println("无法将实例t转化为IComponent类型")
-			return nil
+			return nil, errors.New("无法将实例t转化为IComponent类型")
 		}
 		err := p.components[t].InitFromDB(p.PlayerId)
 		if err != nil {
-			return nil
+			log.Println("无法从数据库中初始化", t.String())
+			return nil, err
 		}
 	}
-	return p.components[t]
+	return p.components[t], nil
 }

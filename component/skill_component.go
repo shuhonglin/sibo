@@ -8,10 +8,9 @@ import (
 )
 
 type SkillComponent struct {
-	BaseComponent
+	MapComponent
 
 	skillMap map[int]*entity.Skill
-	init     bool
 }
 
 func (s SkillComponent) GetType() reflect.Type {

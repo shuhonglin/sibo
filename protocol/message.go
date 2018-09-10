@@ -18,6 +18,7 @@ const (
 var (
 	// message is too long
 	ErrMessageToLong = errors.New("message is too long")
+	ErrMessageMagicNumberError = errors.New("magic number is wrong")
 )
 
 // MessageType is message type of request and response

@@ -16,6 +16,7 @@ type Codec interface {
 	Decode(data []byte, i interface{}) error
 }
 
+// ByteCodec uses original bytes.
 type ByteCodec struct {}
 
 func (c ByteCodec) Encode(i interface{}) ([]byte, error) {
@@ -33,6 +34,7 @@ func (c ByteCodec) Decode(data []byte, i interface{}) error {
 	return nil
 }
 
+// JSONCodec uses json marshaler and unmarshaler.
 type JSONCodec struct{}
 
 func (c JSONCodec) Encode(i interface{}) ([]byte, error) {

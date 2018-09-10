@@ -6,6 +6,7 @@ import (
 	"time"
 	"math/rand"
 	"sibo/proto"
+	"sibo/component"
 )
 
 var (
@@ -77,17 +78,44 @@ func (p *CreatePlayerProcessor) Process(player IPlayer, req interface{}) (interf
 	if !ok {
 		return nil, errors.New("request type transform error")
 	}
-	log.Println(createPlayerRequest.UserId, createPlayerRequest.PlayerName, createPlayerRequest.Sex)
-	player.(*PlayerSession).PlayerId = int64(rand.Int())
-	player.(*PlayerSession).PlayerName = createPlayerRequest.PlayerName
-	player.(*PlayerSession).UserId = createPlayerRequest.UserId
-	player.(*PlayerSession).Sex = createPlayerRequest.Sex
+	log.Println(createPlayerRequest.UserToken, createPlayerRequest.PlayerName, createPlayerRequest.Sex)
+	userComponent, err := player.CreateIfNotExist(component.UserComponent{}.GetType())
+	if err != nil {
+		return nil, err
+	}
+	// todo decode userToken
+	playerId := int64(rand.Int())
+	userId := int64(rand.Int())
+	uComponent := userComponent.(*component.UserComponent)
+	uComponent.SetUserToken(createPlayerRequest.UserToken)
+	uComponent.SetUserId(userId)
+	uComponent.AddPlayer(playerId)
+	uComponent.Save2DB()
+
+	//todo generate player token
+	playerToken := createPlayerRequest.UserToken
+
+	player.(*PlayerSession).PlayerId = playerId
+	player.(*PlayerSession).UserId = userId
+	player.(*PlayerSession).Token = playerToken
+	// player.(*PlayerSession).Sex = createPlayerRequest.Sex
+	//player.(*PlayerSession).PlayerName = createPlayerRequest.PlayerName
+
+	playerComponent, err := player.CreateIfNotExist(component.PlayerComponent{}.GetType())
+	pComponent := playerComponent.(*component.PlayerComponent)
+	pComponent.SetUserId(userId)
+	pComponent.SetPlayerId(playerId)
+	pComponent.SetToken(playerToken)
+	pComponent.SetPlayerName(createPlayerRequest.PlayerName)
+	pComponent.SetSex(createPlayerRequest.Sex)
+	pComponent.SetPosition(0, 0, 0)
+	pComponent.Save2DB()
 
 	PlayerId2PlayerMap.Put(player.(*PlayerSession).PlayerId, player)
 	// todo
 	createPlayerResponse := &proto.CreatePlayerResponse{
-		PlayerId: player.(*PlayerSession).PlayerId,
-		Token:    player.(*PlayerSession).Token,
+		PlayerId: playerId,
+		Token:    playerToken,
 	}
 	log.Println(player)
 	return createPlayerResponse, nil

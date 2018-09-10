@@ -219,6 +219,7 @@ func (s *Server) serveSession(session ISession) {
 			session.Conn().SetWriteDeadline(t0.Add(s.writeTimeout))
 		}
 
+		// 此处类似与没有线程数限制的业务线程池，如果需要保证接收与发送消息的顺序，此处的goroutine需要移除
 		go func() {
 			if req.IsHeartbeat() {
 				req.SetMessageType(protocol.Response)

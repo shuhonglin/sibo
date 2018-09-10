@@ -10,14 +10,22 @@ type IComponent interface {
 	Save2DB() error
 	InitFromDB(playerId int64) error
 
-	saveUpdateEntityToDB()
-	saveNewEntityToDB()
-	deleteEntityFromDB()
-
 	IsInit() bool
 }
 
+type IMapComponent interface {
+	IComponent
+	saveUpdateEntityToDB()
+	saveNewEntityToDB()
+	deleteEntityFromDB()
+}
+
 type BaseComponent struct {
+	init     bool
+}
+
+type MapComponent struct {
+	BaseComponent
 	playerId int64
 	updateSet mapset.Set
 	addSet mapset.Set

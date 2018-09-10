@@ -17,7 +17,7 @@ var (
 )
 
 type CreatePlayerRequest struct {
-	UserId     int64
+	UserToken string
 	PlayerName string
 	Sex        byte
 }

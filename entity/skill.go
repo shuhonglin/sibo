@@ -1,6 +1,7 @@
 package entity
 
 type Skill struct {
+	Base
 	playerId int64
 	skillId int
 	Hole int
