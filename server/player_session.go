@@ -1,16 +1,16 @@
 package server
 
 import (
-	"net"
-	"sync"
+	"github.com/kataras/go-errors"
 	"github.com/satori/go.uuid"
-	"time"
-	"sibo/protocol"
 	log "github.com/sirupsen/logrus"
 	"io"
+	"net"
 	"reflect"
 	"sibo/component"
-	"github.com/kataras/go-errors"
+	"sibo/protocol"
+	"sync"
+	"time"
 )
 
 type Status byte
@@ -116,9 +116,9 @@ func (s *Session) ReadRequest(r io.Reader) (*protocol.Message, error) {
 type PlayerSession struct {
 	session    ISession
 	components map[reflect.Type]component.IComponent
-	UserId int64
-	PlayerId int64
-	Token string
+	UserId     int64
+	PlayerId   int64
+	Token      string
 	//msgChan chan *protocol.Message
 	//components sync.Map
 }
@@ -192,11 +192,11 @@ func (p PlayerSession) SaveComponent(t reflect.Type) error {
 	return p.components[t].Save2DB()
 }
 
-func (p *PlayerSession) GetComponent(t reflect.Type) (component.IComponent,error) {
-	if _, ok := p.components[t];!ok {
+func (p *PlayerSession) GetComponent(t reflect.Type) (component.IComponent, error) {
+	if _, ok := p.components[t]; !ok {
 		return nil, errors.New("component不存在")
 	}
-	if p.components[t].IsInit()==false {
+	if p.components[t].IsInit() == false {
 		return nil, errors.New("component未初始化")
 	}
 	return p.components[t], nil

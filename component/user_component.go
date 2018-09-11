@@ -1,9 +1,9 @@
 package component
 
 import (
-	"sibo/entity"
-	"reflect"
 	log "github.com/sirupsen/logrus"
+	"reflect"
+	"sibo/entity"
 )
 
 type UserComponent struct {
@@ -11,11 +11,11 @@ type UserComponent struct {
 	userEntity *entity.User
 }
 
-
 func (u UserComponent) GetType() reflect.Type {
 	return reflect.TypeOf(u)
 }
 func (u *UserComponent) Save2DB() error {
+	u.userEntity.GetStructMap()
 	log.Info("save user: ", u.userEntity)
 	return nil
 }
@@ -35,11 +35,12 @@ func (u *UserComponent) SetUserToken(token string) {
 
 func (u *UserComponent) SetUserId(userId int64) {
 	u.userEntity.UserId = userId
+	u.userEntity.KeyId = userId
 }
 
 func (u *UserComponent) AddPlayer(playerId int64) {
 	if len(u.userEntity.Players) > 0 {
-		for _,p := range u.userEntity.Players {
+		for _, p := range u.userEntity.Players {
 			if p == playerId {
 				return
 			}
@@ -47,4 +48,3 @@ func (u *UserComponent) AddPlayer(playerId int64) {
 	}
 	u.userEntity.Players = append(u.userEntity.Players, playerId)
 }
-

@@ -1,8 +1,8 @@
 package component
 
 import (
-	"reflect"
 	"github.com/deckarep/golang-set"
+	"reflect"
 )
 
 type IComponent interface {
@@ -21,13 +21,13 @@ type IMapComponent interface {
 }
 
 type BaseComponent struct {
-	init     bool
+	init bool
 }
 
 type MapComponent struct {
 	BaseComponent
-	playerId int64
+	playerId  int64
 	updateSet mapset.Set
-	addSet mapset.Set
-	delSet mapset.Set
+	addSet    mapset.Set
+	delSet    mapset.Set
 }

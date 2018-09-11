@@ -1,10 +1,10 @@
 package component
 
 import (
-	"sibo/entity"
-	"reflect"
-	log "github.com/sirupsen/logrus"
 	"github.com/deckarep/golang-set"
+	log "github.com/sirupsen/logrus"
+	"reflect"
+	"sibo/entity"
 )
 
 type SkillComponent struct {
@@ -18,6 +18,9 @@ func (s SkillComponent) GetType() reflect.Type {
 }
 
 func (s SkillComponent) Save2DB() error {
+	for _, v := range s.skillMap {
+		v.GetStructMap(v)
+	}
 	log.Println("save component to database")
 	if s.addSet.Intersect(s.delSet).Cardinality() > 0 {
 		log.Warn("addSet 与 delSet冲突")
@@ -62,22 +65,22 @@ func (s *SkillComponent) DeleteSkill(skillId int) {
 }
 
 func (s *SkillComponent) AddSkill(skill *entity.Skill) {
-	s.addSet.Add(skill.SkillId())
-	if s.delSet.Contains(skill.SkillId()) {
-		s.delSet.Remove(skill.SkillId())
+	s.addSet.Add(skill.SkillId)
+	if s.delSet.Contains(skill.SkillId) {
+		s.delSet.Remove(skill.SkillId)
 	}
-	if s.updateSet.Contains(skill.SkillId()) {
-		s.updateSet.Remove(skill.SkillId())
+	if s.updateSet.Contains(skill.SkillId) {
+		s.updateSet.Remove(skill.SkillId)
 	}
-	s.skillMap[skill.SkillId()] = skill
+	s.skillMap[skill.SkillId] = skill
 }
 
 func (s *SkillComponent) SaveSkill(skill *entity.Skill) {
-	_, ok := s.skillMap[skill.SkillId()]
+	_, ok := s.skillMap[skill.SkillId]
 	if !ok {
 		s.AddSkill(skill)
 	} else {
-		s.updateSet.Add(skill.SkillId())
+		s.updateSet.Add(skill.SkillId)
 	}
 }
 
@@ -94,12 +97,12 @@ func (s *SkillComponent) loadAllEntityFromDB() {
 	log.Println(selectSql)
 
 	skills := []entity.Skill{}
-	err := db.Select(&skills, selectSql, s.playerId)
+	err := SQL_DB.Select(&skills, selectSql, s.playerId)
 	if err != nil {
 		log.Errorf("初始化玩家{%d}技能错误", s.playerId)
 	}
 	for _, skill := range skills {
-		s.skillMap[skill.SkillId()] = &skill
+		s.skillMap[skill.SkillId] = &skill
 	}
 }
 
@@ -108,7 +111,7 @@ func (s *SkillComponent) saveUpdateEntityToDB() {
 	if s.updateSet.Cardinality() > 0 {
 		updateSql := "UPDATE tb_skill SET hole=:hole WHERE playerId=:playerId AND skillId=:skillId"
 
-		tx := db.MustBegin()
+		tx := SQL_DB.MustBegin()
 		for i := range s.updateSet.Iter() {
 			skill, ok := s.skillMap[i.(int)]
 			if ok { //存在内存中
@@ -128,7 +131,7 @@ func (s *SkillComponent) saveNewEntityToDB() {
 	// 可优化转化为批量插入
 	if s.addSet.Cardinality() > 0 {
 		insertSql := "REPLACE INTO tb_skill(skillId, playerId, hole) VALUES (:skillId, :playerId, :hole)"
-		tx := db.MustBegin()
+		tx := SQL_DB.MustBegin()
 		for i := range s.addSet.Iter() {
 			skill, ok := s.skillMap[i.(int)]
 			if ok { //存在内存中
@@ -153,7 +156,7 @@ func (s *SkillComponent) deleteEntityFromDB() {
 				delSlice[index] = -1
 			}
 		}
-		_, err := db.Exec(delSql, s.playerId, delSlice)
+		_, err := SQL_DB.Exec(delSql, s.playerId, delSlice)
 		if err != nil {
 			log.Error("删除玩家技能失败, ", err)
 		}

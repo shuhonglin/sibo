@@ -1,9 +1,11 @@
 package component
 
 import (
-	"sibo/entity"
-	"reflect"
+	"encoding/json"
+	"github.com/garyburd/redigo/redis"
 	log "github.com/sirupsen/logrus"
+	"reflect"
+	"sibo/entity"
 )
 
 type PlayerComponent struct {
@@ -15,12 +17,17 @@ func (p PlayerComponent) GetType() reflect.Type {
 	return reflect.TypeOf(p)
 }
 func (p *PlayerComponent) Save2DB() error {
-	p.playerEntity.GetStructMap()
+	//m := p.playerEntity.GetStructMap()
+	jsonData, _ := json.Marshal(p.playerEntity)
+	reply, err := REDIS_DB.Get().Do("SET", p.playerEntity.PlayerId, jsonData)
+	log.Println(reply, err)
 	log.Info("save player: ", p.playerEntity)
 	return nil
 }
 func (p *PlayerComponent) InitFromDB(playerId int64) error {
 	p.playerEntity = &entity.Player{}
+	jsonData, _ := redis.Bytes(REDIS_DB.Get().Do("GET", playerId))
+	json.Unmarshal(jsonData, p.playerEntity)
 	return nil
 }
 
@@ -38,6 +45,7 @@ func (p *PlayerComponent) SetUserId(userId int64) {
 
 func (p *PlayerComponent) SetPlayerId(playerId int64) {
 	p.playerEntity.PlayerId = playerId
+	p.playerEntity.KeyId = playerId
 }
 
 func (p *PlayerComponent) SetPlayerName(playerName string) {

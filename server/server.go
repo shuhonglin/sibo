@@ -1,24 +1,24 @@
 package server
 
 import (
-	"net"
-	"time"
-	"sync"
-	"crypto/tls"
-	log "github.com/sirupsen/logrus"
-	"runtime"
 	"bufio"
-	"strings"
-	"io"
-	"sibo/protocol"
-	"sibo/share"
+	"crypto/tls"
 	"errors"
 	"fmt"
-	"sibo/proto"
-	"github.com/robfig/cron"
-	"path"
 	"github.com/lestrrat/go-file-rotatelogs"
 	"github.com/rifflock/lfshook"
+	"github.com/robfig/cron"
+	log "github.com/sirupsen/logrus"
+	"io"
+	"net"
+	"path"
+	"runtime"
+	"sibo/proto"
+	"sibo/protocol"
+	"sibo/share"
+	"strings"
+	"sync"
+	"time"
 )
 
 /*func init() {
@@ -359,8 +359,8 @@ func (s *Server) ConfigLocalFilesystemLogger(logPath, logFileName string, maxAge
 	baseLogPaht := path.Join(logPath, logFileName)
 	writer, err := rotatelogs.New(
 		baseLogPaht+".%Y%m%d%H%M",
-		rotatelogs.WithLinkName(baseLogPaht), // 生成软链，指向最新日志文件
-		rotatelogs.WithMaxAge(maxAge), // 文件最大保存时间
+		rotatelogs.WithLinkName(baseLogPaht),      // 生成软链，指向最新日志文件
+		rotatelogs.WithMaxAge(maxAge),             // 文件最大保存时间
 		rotatelogs.WithRotationTime(rotationTime), // 日志切割时间间隔
 	)
 	if err != nil {

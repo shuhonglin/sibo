@@ -1,9 +1,9 @@
 package server
 
 import (
-	"sync"
-	"sibo/protocol"
 	log "github.com/sirupsen/logrus"
+	"sibo/protocol"
+	"sync"
 )
 
 var PlayerId2PlayerMap = &PlayerId2Player{

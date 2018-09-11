@@ -3,10 +3,10 @@ package server
 import (
 	"errors"
 	log "github.com/sirupsen/logrus"
-	"time"
 	"math/rand"
-	"sibo/proto"
 	"sibo/component"
+	"sibo/proto"
+	"time"
 )
 
 var (
@@ -40,7 +40,7 @@ func (p *ReconnectProcessor) Process(player IPlayer, req interface{}) (interface
 	playerId := time.Now().Unix()
 	if p, ok := PlayerId2PlayerMap.Get(playerId); ok { // player在内存中
 		p.Session().UpdateStatus(CONNECTED) // 更新内存中session的状态，及时阻止保存到数据库的操作被执行
-		p.SetSession(player.Session()) // 设置新的session
+		p.SetSession(player.Session())      // 设置新的session
 		player = p
 	} else { // player不在内存中
 		player = NewPlayer(player.Session())
@@ -84,7 +84,7 @@ func (p *CreatePlayerProcessor) Process(player IPlayer, req interface{}) (interf
 		return nil, err
 	}
 	// todo decode userToken
-	playerId := int64(rand.Int())
+	playerId := int64(10001000001)
 	userId := int64(rand.Int())
 	uComponent := userComponent.(*component.UserComponent)
 	uComponent.SetUserToken(createPlayerRequest.UserToken)
