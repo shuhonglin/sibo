@@ -274,6 +274,9 @@ func (s *Server) handleRequest(player IPlayer, req *protocol.Message) (res *prot
 		return handleError(res, err)
 	}
 	responsePayload, err := ProcessorMap[mmId].Process(player, request)
+	if err != nil {
+		return res, err
+	}
 
 	if !req.IsOneway() {
 		data, err := codec.Encode(responsePayload)

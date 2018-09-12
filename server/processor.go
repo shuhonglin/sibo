@@ -18,6 +18,7 @@ var (
 	ProcessorMap = map[uint32]Processor{
 		proto.CREATE_PLAYER: new(CreatePlayerProcessor),
 		proto.LOGIN:         new(LoginProcessor),
+		proto.ENTERGAME: new(EntergameProcessor),
 	}
 )
 
@@ -28,6 +29,7 @@ type Processor interface {
 type LoginProcessor uint32
 type CreatePlayerProcessor uint32
 type ReconnectProcessor uint32
+type EntergameProcessor uint32
 
 func (p *ReconnectProcessor) Process(player IPlayer, req interface{}) (interface{}, error) {
 	reconnectMsg, ok := req.(*proto.ReconnectRequest)
@@ -53,7 +55,7 @@ func (p *ReconnectProcessor) Process(player IPlayer, req interface{}) (interface
 func (p *LoginProcessor) Process(player IPlayer, req interface{}) (interface{}, error) {
 	loginMsg, ok := req.(*proto.LoginRequest)
 	if !ok {
-		return nil, errors.New("login request transform error")
+		return nil, errors.New("login request cast error")
 	}
 	log.Debug("login msg with token: ", loginMsg.Token)
 
@@ -76,23 +78,25 @@ func (p *LoginProcessor) Process(player IPlayer, req interface{}) (interface{}, 
 func (p *CreatePlayerProcessor) Process(player IPlayer, req interface{}) (interface{}, error) {
 	createPlayerRequest, ok := req.(*proto.CreatePlayerRequest)
 	if !ok {
-		return nil, errors.New("request type transform error")
+		return nil, errors.New("createPlayer request type cast error")
 	}
 	log.Println(createPlayerRequest.UserToken, createPlayerRequest.PlayerName, createPlayerRequest.Sex)
 	userComponent, err := player.CreateIfNotExist(component.UserComponent{}.GetType())
 	if err != nil {
 		return nil, err
 	}
-	// todo decode userToken
+	uComponent := userComponent.(*component.UserComponent)
+	/*if uComponent.AddPlayer() {
+
+	}*/
+	// todo decode userId from userToken and generate playerId,playerToken
 	playerId := int64(10001000001)
 	userId := int64(rand.Int())
-	uComponent := userComponent.(*component.UserComponent)
 	uComponent.SetUserToken(createPlayerRequest.UserToken)
 	uComponent.SetUserId(userId)
 	uComponent.AddPlayer(playerId)
 	uComponent.Save2DB()
 
-	//todo generate player token
 	playerToken := createPlayerRequest.UserToken
 
 	player.(*PlayerSession).PlayerId = playerId
@@ -114,9 +118,29 @@ func (p *CreatePlayerProcessor) Process(player IPlayer, req interface{}) (interf
 	PlayerId2PlayerMap.Put(player.(*PlayerSession).PlayerId, player)
 	// todo
 	createPlayerResponse := &proto.CreatePlayerResponse{
-		PlayerId: playerId,
 		Token:    playerToken,
 	}
 	log.Println(player)
 	return createPlayerResponse, nil
+}
+
+func (p *EntergameProcessor) Process(player IPlayer, req interface{}) (interface{}, error) {
+	entergameReq, ok := req.(*proto.EntergameRequest)
+	if !ok {
+		return nil, errors.New("entergame request cast error")
+	}
+	playerComponent, _ := player.CreateIfNotExist(component.PlayerComponent{}.GetType())
+	pComponent := playerComponent.(*component.PlayerComponent)
+	if entergameReq.Token != pComponent.Token() {
+		return &proto.ErrorResponse{ErrCode:proto.PROCESS_ERROR}, nil
+	}
+
+	entergameResponse := &proto.EntergameResponse{
+		Token:pComponent.Token(),
+		PlayerName:pComponent.PlayerName(),
+		Sex:pComponent.Sex(),
+		Position:pComponent.Position(),
+	}
+	return entergameResponse, nil
+
 }

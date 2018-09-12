@@ -1,5 +1,17 @@
 package proto
 
+/*
+Token由playerId与expireTime等加密而成
+*/
+
+const (
+	PROCESS_ERROR int = -1
+)
+
+type ErrorResponse struct {
+	ErrCode int
+}
+
 type ReconnectResponse struct {
 
 }
@@ -9,6 +21,12 @@ type LoginResponse struct {
 }
 
 type CreatePlayerResponse struct {
-	PlayerId int64
 	Token    string
+}
+
+type EntergameResponse struct {
+	Token string
+	PlayerName string
+	Sex byte
+	Position [3]int
 }

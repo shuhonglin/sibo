@@ -13,6 +13,9 @@ var (
 			return &LoginRequest{
 			}
 		},
+		ENTERGAME: func() interface{} {
+			return &EntergameRequest{}
+		},
 	}
 )
 
@@ -23,9 +26,13 @@ type CreatePlayerRequest struct {
 }
 
 type LoginRequest struct {
-	Token string
+	Token string // 解码可得到playerId,时效等信息
 }
 
 type ReconnectRequest struct {
+	Token string
+}
+
+type EntergameRequest struct {
 	Token string
 }

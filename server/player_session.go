@@ -206,14 +206,16 @@ func (p *PlayerSession) CreateIfNotExist(t reflect.Type) (component.IComponent, 
 		cn := reflect.New(t).Interface()
 		p.components[t], ok = cn.(component.IComponent)
 		if !ok {
-			log.Println("无法将实例t转化为IComponent类型")
+			log.Errorln("无法将实例t转化为IComponent类型")
 			return nil, errors.New("无法将实例t转化为IComponent类型")
 		}
-		err := p.components[t].InitFromDB(p.PlayerId)
+		p.components[t].InitComponent()
+		err := p.components[t].InitFromDB(p.components[t].ID())
 		if err != nil {
-			log.Println("无法从数据库中初始化", t.String())
+			log.Errorln("无法从数据库中初始化 ", t.String(), " for ", err)
 			return nil, err
 		}
+		p.components[t].SetInit(true)
 	}
 	return p.components[t], nil
 }

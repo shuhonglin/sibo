@@ -72,17 +72,26 @@ func init() {
 			idleTimeout: 180 * time.Second,
 			db:          1,
 		}
-		REDIS_DB = &redis.Pool{
+		REDIS_DB = &redis.Pool {
 			MaxIdle:     redisDbParam.maxIdle,
 			MaxActive:   redisDbParam.maxActive,
 			IdleTimeout: redisDbParam.idleTimeout,
 			Dial: func() (redis.Conn, error) {
 				c, err := redis.Dial("tcp", redisDbParam.host+":"+strconv.Itoa(redisDbParam.port))
 				if err != nil {
+					c.Close()
 					return nil, err
 				}
+				//      if _, err := c.Do("AUTH", password); err != nil {
+				//        c.Close()
+				//        return nil, err
+				//      }
 				// 选择db
-				c.Do("SELECT", redisDbParam.db)
+				_, err = c.Do("SELECT", redisDbParam.db)
+				if err != nil {
+					c.Close()
+					return nil, err
+				}
 				return c, nil
 			},
 		}

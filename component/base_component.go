@@ -6,11 +6,15 @@ import (
 )
 
 type IComponent interface {
+	InitComponent()
+
+	ID() int64
 	GetType() reflect.Type
 	Save2DB() error
-	InitFromDB(playerId int64) error
+	InitFromDB(id int64) error
 
 	IsInit() bool
+	SetInit(init bool)
 }
 
 type IMapComponent interface {
@@ -30,4 +34,11 @@ type MapComponent struct {
 	updateSet mapset.Set
 	addSet    mapset.Set
 	delSet    mapset.Set
+}
+
+func (m *MapComponent) InitComponent() {
+	m.playerId = 0
+	m.addSet = mapset.NewSet()
+	m.delSet = mapset.NewSet()
+	m.updateSet = mapset.NewSet()
 }
