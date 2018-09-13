@@ -40,12 +40,24 @@ func (p *ReconnectProcessor) Process(player IPlayer, req interface{}) (interface
 
 	// todo decode playerId from Token
 	playerId := time.Now().Unix()
+
+
 	if p, ok := PlayerId2PlayerMap.Get(playerId); ok { // player在内存中
 		p.Session().UpdateStatus(CONNECTED) // 更新内存中session的状态，及时阻止保存到数据库的操作被执行
 		p.SetSession(player.Session())      // 设置新的session
 		player = p
 	} else { // player不在内存中
 		player = NewPlayer(player.Session())
+		playerSession := player.(*PlayerSession)
+		playerSession.PlayerId = playerId
+		playerSession.Token = reconnectMsg.Token
+
+		userComponent, err := player.CreateIfNotExist(component.UserComponent{}.GetType())
+		if err != nil {
+			return nil, err
+		}
+		uComponent := userComponent.(*component.UserComponent)
+		playerSession.UserId = uComponent.UserId()
 		player.InitFromDB(playerId)
 	}
 	reconnectResponse := &proto.ReconnectResponse{}
@@ -67,7 +79,16 @@ func (p *LoginProcessor) Process(player IPlayer, req interface{}) (interface{}, 
 		player = p
 	} else { // player不在内存中,从数据库中初始化
 		player = NewPlayer(player.Session())
+		playerSession := player.(*PlayerSession)
+		playerSession.PlayerId = playerId
+		playerSession.Token = loginMsg.Token
 		player.InitFromDB(playerId)
+		userComponent, err := player.CreateIfNotExist(component.UserComponent{}.GetType())
+		if err != nil {
+			return nil, err
+		}
+		uComponent := userComponent.(*component.UserComponent)
+		playerSession.UserId = uComponent.UserId()
 	}
 	loginResponse := &proto.LoginResponse{
 		Token: time.Now().String(),
@@ -81,6 +102,17 @@ func (p *CreatePlayerProcessor) Process(player IPlayer, req interface{}) (interf
 		return nil, errors.New("createPlayer request type cast error")
 	}
 	log.Println(createPlayerRequest.UserToken, createPlayerRequest.PlayerName, createPlayerRequest.Sex)
+
+	// todo decode userId from userToken and generate playerId,playerToken
+	playerId := int64(10001000001)
+	userId := int64(rand.Int())
+	playerToken := createPlayerRequest.UserToken
+
+	playerSession := player.(*PlayerSession)
+	playerSession.PlayerId = playerId
+	playerSession.UserId = userId
+	playerSession.Token = playerToken
+
 	userComponent, err := player.CreateIfNotExist(component.UserComponent{}.GetType())
 	if err != nil {
 		return nil, err
@@ -89,19 +121,17 @@ func (p *CreatePlayerProcessor) Process(player IPlayer, req interface{}) (interf
 	/*if uComponent.AddPlayer() {
 
 	}*/
-	// todo decode userId from userToken and generate playerId,playerToken
-	playerId := int64(10001000001)
-	userId := int64(rand.Int())
+
 	uComponent.SetUserToken(createPlayerRequest.UserToken)
 	uComponent.SetUserId(userId)
 	uComponent.AddPlayer(playerId)
 	uComponent.Save2DB()
 
-	playerToken := createPlayerRequest.UserToken
 
-	player.(*PlayerSession).PlayerId = playerId
-	player.(*PlayerSession).UserId = userId
-	player.(*PlayerSession).Token = playerToken
+
+	//player.(*PlayerSession).PlayerId = playerId
+	//player.(*PlayerSession).UserId = userId
+	//player.(*PlayerSession).Token = playerToken
 	// player.(*PlayerSession).Sex = createPlayerRequest.Sex
 	//player.(*PlayerSession).PlayerName = createPlayerRequest.PlayerName
 

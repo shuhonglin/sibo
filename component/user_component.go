@@ -11,26 +11,34 @@ type UserComponent struct {
 	userEntity *entity.User
 }
 
-func (u *UserComponent) InitComponent() {
-	u.userEntity = &entity.User{}
+func (u *UserComponent) InitComponent(playerId int64) {
+	u.playerId = playerId
+	u.keyPrefix = "user_"
+	if u.init == false {
+		u.userEntity = &entity.User{}
+		u.init = true
+	}
 }
 
 func (u UserComponent) GetType() reflect.Type {
 	return reflect.TypeOf(u)
 }
 
-func (u UserComponent) ID() int64 {
+/*func (u UserComponent) ID() int64 {
 	return u.userEntity.UserId
-}
+}*/
 
 func (u *UserComponent) Save2DB() error {
 	u.userEntity.GetStructMap()
 	log.Info("save user: ", u.userEntity)
 	return nil
 }
-func (u *UserComponent) InitFromDB(id int64) error {
-	u.userEntity = &entity.User{}
-	u.userEntity.Players = make([]int64, 5)
+func (u *UserComponent) InitFromDB() error {
+	if u.userEntity == nil {
+		u.userEntity = &entity.User{
+			Players:make([]int64, 5),
+		}
+	}
 	return nil
 }
 
@@ -50,7 +58,11 @@ func (u *UserComponent) SetUserId(userId int64) {
 	u.userEntity.UserId = userId
 }
 
-func (u UserComponent) Players() []int64 {
+func (u UserComponent) UserId() int64 {
+	return u.userEntity.UserId
+}
+
+func (u *UserComponent) Players() []int64 {
 	return u.userEntity.Players
 }
 

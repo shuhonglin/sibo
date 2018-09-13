@@ -13,30 +13,41 @@ type PlayerComponent struct {
 	playerEntity *entity.Player
 }
 
-func (p *PlayerComponent) InitComponent() {
-	p.playerEntity = &entity.Player{}
+func (p *PlayerComponent) InitComponent(playerId int64) {
+	p.playerId = playerId
+	p.keyPrefix = "player_"
+	if p.init == false {
+		p.playerEntity = &entity.Player{}
+		p.init = true
+	}
 }
 
 func (p PlayerComponent) GetType() reflect.Type {
 	return reflect.TypeOf(p)
 }
 
-func (p PlayerComponent) ID() int64 {
+/*func (p PlayerComponent) Key() string {
+	return p.prefix+strconv.FormatInt(p.playerEntity.PlayerId, 10)
+}*/
+
+/*func (p PlayerComponent) ID() int64 {
 	return p.playerEntity.PlayerId
-}
+}*/
 
 func (p *PlayerComponent) Save2DB() error {
 	//m := p.playerEntity.GetStructMap()
 	jsonData, _ := json.Marshal(p.playerEntity)
-	reply, err := REDIS_DB.Get().Do("SET", p.playerEntity.PlayerId, jsonData)
+	reply, err := REDIS_DB.Get().Do("SET", p.Key(), jsonData)
 	log.Println(reply, err)
 	log.Info("save player: ", p.playerEntity)
 	return nil
 }
 
-func (p *PlayerComponent) InitFromDB(playerId int64) error {
-	p.playerEntity = &entity.Player{}
-	jsonData, err := redis.Bytes(REDIS_DB.Get().Do("GET", playerId))
+func (p *PlayerComponent) InitFromDB() error {
+	if p.playerEntity == nil {
+		p.playerEntity = &entity.Player{}
+	}
+	jsonData, err := redis.Bytes(REDIS_DB.Get().Do("GET", p.Key()))
 	if err != nil {
 		return err
 	}
@@ -66,7 +77,6 @@ func (p *PlayerComponent) SetUserId(userId int64) {
 
 func (p *PlayerComponent) SetPlayerId(playerId int64) {
 	p.playerEntity.PlayerId = playerId
-	p.playerEntity.KeyId = playerId
 }
 
 func (p *PlayerComponent) SetPlayerName(playerName string) {

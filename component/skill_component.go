@@ -13,18 +13,23 @@ type SkillComponent struct {
 	skillMap map[int]*entity.Skill
 }
 
-func (s *SkillComponent) InitComponent() {
-	s.MapComponent.InitComponent()
-	s.skillMap = make(map[int]*entity.Skill)
+func (s *SkillComponent) InitComponent(playerId int64) {
+	s.playerId = playerId
+	s.keyPrefix = "skill_"
+	if s.init == false {
+		s.MapComponent.InitComponent(playerId)
+		s.skillMap = make(map[int]*entity.Skill)
+		s.init = true
+	}
 }
 
 func (s SkillComponent) GetType() reflect.Type {
 	return reflect.TypeOf(s)
 }
 
-func (s SkillComponent) ID() int64 {
+/*func (s SkillComponent) ID() int64 {
 	return s.playerId
-}
+}*/
 
 func (s SkillComponent) Save2DB() error {
 	for _, v := range s.skillMap {
@@ -40,7 +45,7 @@ func (s SkillComponent) Save2DB() error {
 	return nil
 }
 
-func (s *SkillComponent) InitFromDB(playerId int64) error {
+func (s *SkillComponent) InitFromDB() error {
 	if s.updateSet == nil {
 		s.updateSet = mapset.NewSet()
 	}
@@ -50,9 +55,7 @@ func (s *SkillComponent) InitFromDB(playerId int64) error {
 	if s.delSet == nil {
 		s.delSet = mapset.NewSet()
 	}
-	s.playerId = playerId
 	s.loadAllEntityFromDB()
-	s.init = true
 	log.Println("init from db")
 	return nil
 }

@@ -209,13 +209,12 @@ func (p *PlayerSession) CreateIfNotExist(t reflect.Type) (component.IComponent, 
 			log.Errorln("无法将实例t转化为IComponent类型")
 			return nil, errors.New("无法将实例t转化为IComponent类型")
 		}
-		p.components[t].InitComponent()
-		err := p.components[t].InitFromDB(p.components[t].ID())
+		p.components[t].InitComponent(p.PlayerId)
+		err := p.components[t].InitFromDB()
 		if err != nil {
-			log.Errorln("无法从数据库中初始化 ", t.String(), " for ", err)
-			return nil, err
+			log.Errorln("无法从数据库中初始化 ", p.PlayerId, t.String(), " for ", err)
+			//return nil, err
 		}
-		p.components[t].SetInit(true)
 	}
 	return p.components[t], nil
 }

@@ -7,7 +7,6 @@ import (
 )
 
 type Base struct {
-	KeyId int64
 }
 
 func (b Base) GetStructMap(entity interface{}) map[string]interface{} {
