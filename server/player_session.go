@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"sibo/component"
 	"sibo/protocol"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -194,10 +195,10 @@ func (p PlayerSession) SaveComponent(t reflect.Type) error {
 
 func (p *PlayerSession) GetComponent(t reflect.Type) (component.IComponent, error) {
 	if _, ok := p.components[t]; !ok {
-		return nil, errors.New("component不存在")
+		return nil, errors.New(strconv.FormatInt(p.PlayerId, 10) + " component不存在")
 	}
 	if p.components[t].IsInit() == false {
-		return nil, errors.New("component未初始化")
+		return nil, errors.New(strconv.FormatInt(p.PlayerId, 10) + " component未初始化")
 	}
 	return p.components[t], nil
 }
@@ -207,7 +208,7 @@ func (p *PlayerSession) CreateIfNotExist(t reflect.Type) (component.IComponent, 
 		p.components[t], ok = cn.(component.IComponent)
 		if !ok {
 			log.Errorln("无法将实例t转化为IComponent类型")
-			return nil, errors.New("无法将实例t转化为IComponent类型")
+			return nil, errors.New(strconv.FormatInt(p.PlayerId, 10) + " 无法将实例t转化为IComponent类型")
 		}
 		p.components[t].InitComponent(p.PlayerId)
 		err := p.components[t].InitFromDB()

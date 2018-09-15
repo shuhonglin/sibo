@@ -14,6 +14,7 @@ type PlayerComponent struct {
 }
 
 func (p *PlayerComponent) InitComponent(playerId int64) {
+	p.dbSaveProxy = p
 	p.playerId = playerId
 	p.keyPrefix = "player_"
 	if p.init == false {
@@ -34,7 +35,14 @@ func (p PlayerComponent) GetType() reflect.Type {
 	return p.playerEntity.PlayerId
 }*/
 
-func (p *PlayerComponent) Save2DB() error {
+
+func (p *PlayerComponent) save2SqlDB() error {
+	log.Info("save to sql database")
+	return nil
+}
+
+func (p *PlayerComponent) save2NoSqlDB() error {
+	log.Info("save to nosql database")
 	//m := p.playerEntity.GetStructMap()
 	jsonData, _ := json.Marshal(p.playerEntity)
 	reply, err := REDIS_DB.Get().Do("SET", p.Key(), jsonData)
@@ -43,7 +51,14 @@ func (p *PlayerComponent) Save2DB() error {
 	return nil
 }
 
-func (p *PlayerComponent) InitFromDB() error {
+func (p *PlayerComponent) initFromSqlDB() error {
+	if p.playerEntity == nil {
+		p.playerEntity = &entity.Player{}
+	}
+	log.Info("init player from sql db")
+	return nil
+}
+func (p *PlayerComponent) initFromNoSqlDB() error {
 	if p.playerEntity == nil {
 		p.playerEntity = &entity.Player{}
 	}
@@ -54,6 +69,18 @@ func (p *PlayerComponent) InitFromDB() error {
 	json.Unmarshal(jsonData, p.playerEntity)
 	return nil
 }
+
+/*func (p *PlayerComponent) InitFromDB() error {
+	if p.playerEntity == nil {
+		p.playerEntity = &entity.Player{}
+	}
+	jsonData, err := redis.Bytes(REDIS_DB.Get().Do("GET", p.Key()))
+	if err != nil {
+		return err
+	}
+	json.Unmarshal(jsonData, p.playerEntity)
+	return nil
+}*/
 
 func (p PlayerComponent) IsInit() bool {
 	return p.init

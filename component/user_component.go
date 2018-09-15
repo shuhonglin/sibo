@@ -12,6 +12,7 @@ type UserComponent struct {
 }
 
 func (u *UserComponent) InitComponent(playerId int64) {
+	u.dbSaveProxy = u
 	u.playerId = playerId
 	u.keyPrefix = "user_"
 	if u.init == false {
@@ -28,19 +29,49 @@ func (u UserComponent) GetType() reflect.Type {
 	return u.userEntity.UserId
 }*/
 
-func (u *UserComponent) Save2DB() error {
+/*func (u *UserComponent) Save2DB() error {
+	u.userEntity.GetStructMap()
+	log.Info("save user: ", u.userEntity)
+	return nil
+}*/
+
+func (u *UserComponent) save2SqlDB() error {
+	log.Info("save usercomponent to sql db")
+	return nil
+}
+
+func (u *UserComponent) save2NoSqlDB() error {
 	u.userEntity.GetStructMap()
 	log.Info("save user: ", u.userEntity)
 	return nil
 }
-func (u *UserComponent) InitFromDB() error {
+
+func (u *UserComponent) initFromSqlDB() error {
 	if u.userEntity == nil {
 		u.userEntity = &entity.User{
-			Players:make([]int64, 5),
+			Players: make([]int64, 5),
 		}
 	}
 	return nil
 }
+func (u *UserComponent) initFromNoSqlDB() error {
+	if u.userEntity == nil {
+		u.userEntity = &entity.User{
+			Players: make([]int64, 5),
+		}
+	}
+	return nil
+}
+
+/*func (u *UserComponent) InitFromDB() error {
+	u.dbSaveProxy = u
+	if u.userEntity == nil {
+		u.userEntity = &entity.User{
+			Players: make([]int64, 5),
+		}
+	}
+	return nil
+}*/
 
 func (u UserComponent) IsInit() bool {
 	return u.init

@@ -18,7 +18,7 @@ var (
 	ProcessorMap = map[uint32]Processor{
 		proto.CREATE_PLAYER: new(CreatePlayerProcessor),
 		proto.LOGIN:         new(LoginProcessor),
-		proto.ENTERGAME: new(EntergameProcessor),
+		proto.ENTERGAME:     new(EntergameProcessor),
 	}
 )
 
@@ -40,7 +40,6 @@ func (p *ReconnectProcessor) Process(player IPlayer, req interface{}) (interface
 
 	// todo decode playerId from Token
 	playerId := time.Now().Unix()
-
 
 	if p, ok := PlayerId2PlayerMap.Get(playerId); ok { // player在内存中
 		p.Session().UpdateStatus(CONNECTED) // 更新内存中session的状态，及时阻止保存到数据库的操作被执行
@@ -104,7 +103,7 @@ func (p *CreatePlayerProcessor) Process(player IPlayer, req interface{}) (interf
 	log.Println(createPlayerRequest.UserToken, createPlayerRequest.PlayerName, createPlayerRequest.Sex)
 
 	// todo decode userId from userToken and generate playerId,playerToken
-	playerId := int64(10001000001)
+	playerId := int64(10001000002)
 	userId := int64(rand.Int())
 	playerToken := createPlayerRequest.UserToken
 
@@ -127,8 +126,6 @@ func (p *CreatePlayerProcessor) Process(player IPlayer, req interface{}) (interf
 	uComponent.AddPlayer(playerId)
 	uComponent.Save2DB()
 
-
-
 	//player.(*PlayerSession).PlayerId = playerId
 	//player.(*PlayerSession).UserId = userId
 	//player.(*PlayerSession).Token = playerToken
@@ -148,7 +145,7 @@ func (p *CreatePlayerProcessor) Process(player IPlayer, req interface{}) (interf
 	PlayerId2PlayerMap.Put(player.(*PlayerSession).PlayerId, player)
 	// todo
 	createPlayerResponse := &proto.CreatePlayerResponse{
-		Token:    playerToken,
+		Token: playerToken,
 	}
 	log.Println(player)
 	return createPlayerResponse, nil
@@ -162,14 +159,14 @@ func (p *EntergameProcessor) Process(player IPlayer, req interface{}) (interface
 	playerComponent, _ := player.CreateIfNotExist(component.PlayerComponent{}.GetType())
 	pComponent := playerComponent.(*component.PlayerComponent)
 	if entergameReq.Token != pComponent.Token() {
-		return &proto.ErrorResponse{ErrCode:proto.PROCESS_ERROR}, nil
+		return &proto.ErrorResponse{ErrCode: proto.PROCESS_ERROR}, nil
 	}
 
 	entergameResponse := &proto.EntergameResponse{
-		Token:pComponent.Token(),
-		PlayerName:pComponent.PlayerName(),
-		Sex:pComponent.Sex(),
-		Position:pComponent.Position(),
+		Token:      pComponent.Token(),
+		PlayerName: pComponent.PlayerName(),
+		Sex:        pComponent.Sex(),
+		Position:   pComponent.Position(),
 	}
 	return entergameResponse, nil
 

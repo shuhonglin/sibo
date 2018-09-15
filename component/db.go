@@ -10,12 +10,12 @@ import (
 )
 
 const (
-	MYSQL_TYPE byte = 0
-	REDIS_TYPE      = 1
+	MYSQL_TYPE byte = 1
+	REDIS_TYPE      = 2
 )
 
 var (
-	DB_TYPE  byte
+	DB_TYPE  byte // 最低位为mysql,次低位为redis(eg: 只开启mysql DB_TYPE:01, 只开启redis DB_TYPE:10, 两者都开启 DB_TYPE:11)。
 	SQL_DB   *sqlx.DB
 	REDIS_DB *redis.Pool
 )
@@ -37,11 +37,12 @@ type RedisDbParam struct {
 	maxActive   int
 	idleTimeout time.Duration
 	db          int
+	authPswd    string
 }
 
 func init() {
 	var err error
-	DB_TYPE = 1
+	DB_TYPE = 2
 	if DB_TYPE == MYSQL_TYPE {
 		// 从配置文件中读取
 		sqlDbParam := &SqlDbParam{
@@ -72,20 +73,22 @@ func init() {
 			idleTimeout: 180 * time.Second,
 			db:          1,
 		}
-		REDIS_DB = &redis.Pool {
+		REDIS_DB = &redis.Pool{
 			MaxIdle:     redisDbParam.maxIdle,
 			MaxActive:   redisDbParam.maxActive,
 			IdleTimeout: redisDbParam.idleTimeout,
 			Dial: func() (redis.Conn, error) {
 				c, err := redis.Dial("tcp", redisDbParam.host+":"+strconv.Itoa(redisDbParam.port))
 				if err != nil {
-					c.Close()
 					return nil, err
 				}
-				//      if _, err := c.Do("AUTH", password); err != nil {
-				//        c.Close()
-				//        return nil, err
-				//      }
+				if redisDbParam.authPswd != "" {
+					if _, err = c.Do("AUTH", redisDbParam.authPswd); err != nil {
+						c.Close()
+						return nil, err
+					}
+				}
+
 				// 选择db
 				_, err = c.Do("SELECT", redisDbParam.db)
 				if err != nil {
@@ -94,6 +97,10 @@ func init() {
 				}
 				return c, nil
 			},
+		}
+		cn := REDIS_DB.Get()
+		if cn == nil {
+			log.Fatalln(err)
 		}
 	}
 

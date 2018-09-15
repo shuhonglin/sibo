@@ -14,6 +14,7 @@ type SkillComponent struct {
 }
 
 func (s *SkillComponent) InitComponent(playerId int64) {
+	s.dbSaveProxy = s
 	s.playerId = playerId
 	s.keyPrefix = "skill_"
 	if s.init == false {
@@ -31,7 +32,21 @@ func (s SkillComponent) GetType() reflect.Type {
 	return s.playerId
 }*/
 
-func (s SkillComponent) Save2DB() error {
+/*func (s *SkillComponent) Save2DB() error {
+	for _, v := range s.skillMap {
+		v.GetStructMap(v)
+	}
+	log.Println("save component to database")
+	if s.addSet.Intersect(s.delSet).Cardinality() > 0 {
+		log.Warn("addSet 与 delSet冲突")
+	}
+	s.deleteEntityFromDB()
+	s.saveNewEntityToDB()
+	s.saveUpdateEntityToDB()
+	return nil
+}*/
+
+func (s *SkillComponent) save2SqlDB() error {
 	for _, v := range s.skillMap {
 		v.GetStructMap(v)
 	}
@@ -45,7 +60,40 @@ func (s SkillComponent) Save2DB() error {
 	return nil
 }
 
-func (s *SkillComponent) InitFromDB() error {
+func (s *SkillComponent) save2NoSqlDB() error {
+	log.Info("save skill to nosql db")
+	return nil
+}
+
+func (s *SkillComponent) initFromSqlDB() error {
+	if s.updateSet == nil {
+		s.updateSet = mapset.NewSet()
+	}
+	if s.addSet == nil {
+		s.addSet = mapset.NewSet()
+	}
+	if s.delSet == nil {
+		s.delSet = mapset.NewSet()
+	}
+	s.loadAllEntityFromDB()
+	log.Println("init skill map from sql db")
+	return nil
+}
+func (s *SkillComponent) initFromNoSqlDB() error {
+	if s.updateSet == nil {
+		s.updateSet = mapset.NewSet()
+	}
+	if s.addSet == nil {
+		s.addSet = mapset.NewSet()
+	}
+	if s.delSet == nil {
+		s.delSet = mapset.NewSet()
+	}
+	log.Println("init skill map from nosql db")
+	return nil
+}
+
+/*func (s *SkillComponent) InitFromDB() error {
 	if s.updateSet == nil {
 		s.updateSet = mapset.NewSet()
 	}
@@ -58,7 +106,7 @@ func (s *SkillComponent) InitFromDB() error {
 	s.loadAllEntityFromDB()
 	log.Println("init from db")
 	return nil
-}
+}*/
 
 func (s *SkillComponent) GetSkill(skillId int) (*entity.Skill, bool) {
 	skill, ok := s.skillMap[skillId]
