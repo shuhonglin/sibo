@@ -1,10 +1,13 @@
 package server
 
-import log "github.com/sirupsen/logrus"
+import (
+	log "github.com/sirupsen/logrus"
+	"sibo/server/processor"
+)
 
 type SavePlayerJob int
 
 func (job *SavePlayerJob) Run() {
 	log.Println("schedule save...")
-	PlayerId2PlayerMap.AutoSave2DB()
+	processor.PlayerId2PlayerMap.AutoSave2DB()
 }

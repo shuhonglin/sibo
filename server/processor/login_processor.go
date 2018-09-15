@@ -1,4 +1,4 @@
-package server
+package processor
 
 import (
 	"errors"
@@ -7,24 +7,9 @@ import (
 	"sibo/component"
 	"sibo/proto"
 	"time"
+	"sibo/proto/login"
+	"sibo/proto/errcode"
 )
-
-var (
-	/*RequestMap = map[uint32]interface{} {
-		CREATE_PLAYER: &CreatePlayerRequest{},
-		LOGIN: &LoginRequest{},
-	}*/
-
-	ProcessorMap = map[uint32]Processor{
-		proto.CREATE_PLAYER: new(CreatePlayerProcessor),
-		proto.LOGIN:         new(LoginProcessor),
-		proto.ENTERGAME:     new(EntergameProcessor),
-	}
-)
-
-type Processor interface {
-	Process(player IPlayer, req interface{}) (interface{}, error)
-}
 
 type LoginProcessor uint32
 type CreatePlayerProcessor uint32
@@ -32,7 +17,7 @@ type ReconnectProcessor uint32
 type EntergameProcessor uint32
 
 func (p *ReconnectProcessor) Process(player IPlayer, req interface{}) (interface{}, error) {
-	reconnectMsg, ok := req.(*proto.ReconnectRequest)
+	reconnectMsg, ok := req.(*login.ReconnectRequest)
 	if !ok {
 		return nil, errors.New("reconnect request transform error")
 	}
@@ -59,12 +44,12 @@ func (p *ReconnectProcessor) Process(player IPlayer, req interface{}) (interface
 		playerSession.UserId = uComponent.UserId()
 		player.InitFromDB(playerId)
 	}
-	reconnectResponse := &proto.ReconnectResponse{}
+	reconnectResponse := &login.ReconnectResponse{}
 	return reconnectResponse, nil
 }
 
 func (p *LoginProcessor) Process(player IPlayer, req interface{}) (interface{}, error) {
-	loginMsg, ok := req.(*proto.LoginRequest)
+	loginMsg, ok := req.(*login.LoginRequest)
 	if !ok {
 		return nil, errors.New("login request cast error")
 	}
@@ -89,14 +74,14 @@ func (p *LoginProcessor) Process(player IPlayer, req interface{}) (interface{}, 
 		uComponent := userComponent.(*component.UserComponent)
 		playerSession.UserId = uComponent.UserId()
 	}
-	loginResponse := &proto.LoginResponse{
+	loginResponse := &login.LoginResponse{
 		Token: time.Now().String(),
 	}
 	return loginResponse, nil
 }
 
 func (p *CreatePlayerProcessor) Process(player IPlayer, req interface{}) (interface{}, error) {
-	createPlayerRequest, ok := req.(*proto.CreatePlayerRequest)
+	createPlayerRequest, ok := req.(*login.CreatePlayerRequest)
 	if !ok {
 		return nil, errors.New("createPlayer request type cast error")
 	}
@@ -144,7 +129,7 @@ func (p *CreatePlayerProcessor) Process(player IPlayer, req interface{}) (interf
 
 	PlayerId2PlayerMap.Put(player.(*PlayerSession).PlayerId, player)
 	// todo
-	createPlayerResponse := &proto.CreatePlayerResponse{
+	createPlayerResponse := &login.CreatePlayerResponse{
 		Token: playerToken,
 	}
 	log.Println(player)
@@ -152,17 +137,17 @@ func (p *CreatePlayerProcessor) Process(player IPlayer, req interface{}) (interf
 }
 
 func (p *EntergameProcessor) Process(player IPlayer, req interface{}) (interface{}, error) {
-	entergameReq, ok := req.(*proto.EntergameRequest)
+	entergameReq, ok := req.(*login.EntergameRequest)
 	if !ok {
 		return nil, errors.New("entergame request cast error")
 	}
 	playerComponent, _ := player.CreateIfNotExist(component.PlayerComponent{}.GetType())
 	pComponent := playerComponent.(*component.PlayerComponent)
 	if entergameReq.Token != pComponent.Token() {
-		return &proto.ErrorResponse{ErrCode: proto.PROCESS_ERROR}, nil
+		return &errcode.ErrorResponse{ErrCode: proto.PROCESS_ERROR}, nil
 	}
 
-	entergameResponse := &proto.EntergameResponse{
+	entergameResponse := &login.EntergameResponse{
 		Token:      pComponent.Token(),
 		PlayerName: pComponent.PlayerName(),
 		Sex:        pComponent.Sex(),

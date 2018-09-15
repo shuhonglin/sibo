@@ -23,7 +23,7 @@ var (
 type SqlDbParam struct {
 	driverName string
 	host       string
-	port       string
+	port       int
 	urlParam   string
 	user       string
 	password   string
@@ -40,7 +40,7 @@ type RedisDbParam struct {
 	authPswd    string
 }
 
-func init() {
+func InitDB() {
 	var err error
 	DB_TYPE = 2
 	if DB_TYPE == MYSQL_TYPE {
@@ -48,14 +48,14 @@ func init() {
 		sqlDbParam := &SqlDbParam{
 			driverName: "mysql",
 			host:       "127.0.0.1",
-			port:       "3306",
+			port:       3306,
 			urlParam:   "",
 			user:       "linshuhong",
 			password:   "feiyin",
 			db:         "fairy_cms",
 		}
 		//SQL_DB, err = sqlx.Open("mysql", "linshuhong:feiyin@tcp(127.0.0.1:3306)/fairy_cms?charset=utf8")
-		SQL_DB, err = sqlx.Open(sqlDbParam.driverName, sqlDbParam.user+":"+sqlDbParam.password+"@tcp("+sqlDbParam.host+":"+sqlDbParam.port+")/"+sqlDbParam.db+"?"+sqlDbParam.urlParam)
+		SQL_DB, err = sqlx.Open(sqlDbParam.driverName, sqlDbParam.user+":"+sqlDbParam.password+"@tcp("+sqlDbParam.host+":"+strconv.Itoa(sqlDbParam.port)+")/"+sqlDbParam.db+"?"+sqlDbParam.urlParam)
 		if err != nil {
 			log.Fatalln(err)
 		}

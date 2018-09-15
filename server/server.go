@@ -19,6 +19,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"sibo/component"
+	"sibo/server/processor"
 )
 
 /*func init() {
@@ -58,7 +60,7 @@ type Server struct {
 	scheduleSaveDuration time.Duration
 
 	mu            sync.RWMutex
-	activeSession map[ISession]struct{}
+	activeSession map[processor.ISession]struct{}
 	doneChan      chan struct{}
 	inShutdown    int32 // accessed atomically (non-zero means we're in Shutdown)
 
@@ -97,6 +99,7 @@ func (s *Server) Serve(network, address string) (err error) {
 	} else {
 		ln, err = tls.Listen("tcp", address, s.tlsConfig)
 	}
+	component.InitDB()
 	s.cron.Start()
 	s.scheduleSavePlayer2DB() // start save job
 	return s.serveListener(ln)
@@ -108,7 +111,7 @@ func (s *Server) serveListener(ln net.Listener) error {
 	s.mu.Lock()
 	s.ln = ln
 	if s.activeSession == nil {
-		s.activeSession = make(map[ISession]struct{})
+		s.activeSession = make(map[processor.ISession]struct{})
 	}
 	s.mu.Unlock()
 
@@ -144,16 +147,16 @@ func (s *Server) serveListener(ln net.Listener) error {
 		}
 
 		s.mu.Lock()
-		session := NewSession(conn)
+		session := processor.NewSession(conn)
 		s.activeSession[session] = struct{}{}
 		s.mu.Unlock()
 		go s.serveSession(session)
 	}
 }
 
-func (s *Server) serveSession(session ISession) {
+func (s *Server) serveSession(session processor.ISession) {
 	log.Println("serve session -> ", session.SessionId())
-	player := NewPlayer(session)
+	player := processor.NewPlayer(session)
 	//atomic.AddInt32(&s.inShutdown, 5)
 	defer func() { // execute when client disconnect from server
 		if err := recover(); err != nil {
@@ -240,7 +243,7 @@ func (s *Server) serveSession(session ISession) {
 	}
 }
 
-func (s *Server) handleRequest(player IPlayer, req *protocol.Message) (res *protocol.Message, err error) {
+func (s *Server) handleRequest(player processor.IPlayer, req *protocol.Message) (res *protocol.Message, err error) {
 	res = req.Clone()
 	res.SetMessageType(protocol.Response)
 
@@ -273,7 +276,7 @@ func (s *Server) handleRequest(player IPlayer, req *protocol.Message) (res *prot
 	if err != nil {
 		return handleError(res, err)
 	}
-	responsePayload, err := ProcessorMap[mmId].Process(player, request)
+	responsePayload, err := processor.ProcessorMap[mmId].Process(player, request)
 	if err != nil {
 		return res, err
 	}
@@ -328,11 +331,11 @@ func (s *Server) scheduleSavePlayer2DB() {
 }
 
 func (s *Server) saveAllPlayer2DB() {
-	if PlayerId2PlayerMap.Len() > 0 {
-		for _, player := range PlayerId2PlayerMap.Values() {
+	if processor.PlayerId2PlayerMap.Len() > 0 {
+		for _, player := range processor.PlayerId2PlayerMap.Values() {
 			//player, ok := PlayerId2PlayerMap.Get(k)
 			s.waitGroup.Add(1)
-			go func(player IPlayer) {
+			go func(player processor.IPlayer) {
 				defer s.waitGroup.Done()
 				log.Println("task start")
 				time.Sleep(2 * time.Second)
@@ -340,7 +343,7 @@ func (s *Server) saveAllPlayer2DB() {
 				log.Println("task end")
 			}(player)
 		}
-		PlayerId2PlayerMap.Clear()
+		processor.PlayerId2PlayerMap.Clear()
 	}
 }
 

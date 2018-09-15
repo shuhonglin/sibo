@@ -1,4 +1,4 @@
-package server
+package processor
 
 import (
 	"github.com/kataras/go-errors"
