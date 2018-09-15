@@ -23,6 +23,9 @@ func (p *ReconnectProcessor) Process(player IPlayer, req interface{}) (interface
 	}
 	log.Debug("reconnect msg with token: ", reconnectMsg.Token)
 
+	if reconnectMsg.Token == "" {
+		return &errcode.ErrorResponse{ErrCode: proto.PROCESS_ERROR}, nil
+	}
 	// todo decode playerId from Token
 	playerId := time.Now().Unix()
 
@@ -88,7 +91,7 @@ func (p *CreatePlayerProcessor) Process(player IPlayer, req interface{}) (interf
 	log.Println(createPlayerRequest.UserToken, createPlayerRequest.PlayerName, createPlayerRequest.Sex)
 
 	// todo decode userId from userToken and generate playerId,playerToken
-	playerId := int64(10001000002)
+	playerId := int64(10001000003)
 	userId := int64(rand.Int())
 	playerToken := createPlayerRequest.UserToken
 
