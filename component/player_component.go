@@ -6,6 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"reflect"
 	"sibo/entity"
+	"strings"
 )
 
 type PlayerComponent struct {
@@ -38,6 +39,25 @@ func (p PlayerComponent) GetType() reflect.Type {
 
 func (p *PlayerComponent) save2SqlDB() error {
 	log.Info("save to sql database")
+	//insertSql := "REPLACE INTO tb_skill(skillId, playerId, hole) VALUES (:skillId, :playerId, :hole)"
+	insertSql := "REPLACE INTO tb_player("
+	nameValues := p.playerEntity.GetStructMap()
+	names := make([]string, len(nameValues))
+	values := make([]string, len(nameValues))
+	i:=0
+	for k := range nameValues {
+		names[i] = strings.ToLower(k)
+		values[i] = ":"+names[i]
+		i++
+	}
+	insertSql += strings.Join(names, ",")+") VALUES (" + strings.Join(values,",")+")"
+	log.Info(insertSql)
+	tx := SQL_DB.MustBegin()
+	_,err:= tx.NamedExec(insertSql, p.playerEntity)
+	if err!=nil {
+		log.Error(err)
+	}
+	tx.Commit()
 	return nil
 }
 
@@ -56,6 +76,11 @@ func (p *PlayerComponent) initFromSqlDB() error {
 		p.playerEntity = &entity.Player{}
 	}
 	log.Info("init player from sql db")
+	selectSql := "SELECT * FROM tb_player where playerId = ?"
+	err := SQL_DB.Select(p.playerEntity, selectSql, p.Key())
+	if err != nil {
+		log.Error(err)
+	}
 	return nil
 }
 func (p *PlayerComponent) initFromNoSqlDB() error {
@@ -123,11 +148,16 @@ func (p PlayerComponent) Sex() byte {
 }
 
 func (p *PlayerComponent) SetPosition(x, y, z int) {
-	p.playerEntity.Pos[0] = x
-	p.playerEntity.Pos[1] = y
-	p.playerEntity.Pos[2] = z
+	pos := make([]int, 3, 3)
+	pos[0] = x
+	pos[1] = y
+	pos[2] = z
+	jsonData,_ := json.Marshal(pos)
+	p.playerEntity.Pos = string(jsonData)
 }
 
 func (p PlayerComponent) Position() [3]int {
-	return p.playerEntity.Pos
+	pos := [3]int{}
+	json.Unmarshal([]byte(p.playerEntity.Pos), pos)
+	return pos
 }

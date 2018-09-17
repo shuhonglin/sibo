@@ -20,6 +20,13 @@ func (b Base) GetStructMap(entity interface{}) map[string]interface{} {
 	return fieldMap
 }
 
+/*func (b Base) GetStructFieldNames(entity interface{}) []string {
+	fieldNames := make([]string, 30)
+	t := reflect.TypeOf(entity)
+	getStructFieldNames(t, fieldNames)
+	return fieldNames
+}*/
+
 func getStructFieldNameValues(t reflect.Type, v reflect.Value, fieldMap map[string]interface{}) {
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
@@ -50,3 +57,29 @@ func getStructFieldNameValues(t reflect.Type, v reflect.Value, fieldMap map[stri
 		}
 	}
 }
+
+/*func getStructFieldNames(t reflect.Type, fieldNames []string) {
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	if t.Kind() != reflect.Struct {
+		log.Errorln("Check type error not Struct")
+	}
+	fieldNum := t.NumField()
+	var tagName, fieldName string
+	for i := 0; i < fieldNum; i++ {
+		fieldName = t.Field(i).Name
+		if t.Field(i).Type.Kind() == reflect.Struct {
+			getStructFieldNames(t.Field(i).Type, fieldNames)
+			log.Println("field is struct ", t.Field(i).Name)
+		} else {
+			tags := strings.Split(string(t.Field(i).Tag), "\"")
+			if len(tags) > 1 {
+				tagName = tags[1]
+			} else {
+				tagName = fieldName
+			}
+			fieldNames = append(fieldNames, tagName)
+		}
+	}
+}*/

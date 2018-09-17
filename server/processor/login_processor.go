@@ -3,12 +3,11 @@ package processor
 import (
 	"errors"
 	log "github.com/sirupsen/logrus"
-	"math/rand"
 	"sibo/component"
 	"sibo/proto"
-	"time"
-	"sibo/proto/login"
 	"sibo/proto/errcode"
+	"sibo/proto/login"
+	"time"
 )
 
 type LoginProcessor uint32
@@ -91,8 +90,8 @@ func (p *CreatePlayerProcessor) Process(player IPlayer, req interface{}) (interf
 	log.Println(createPlayerRequest.UserToken, createPlayerRequest.PlayerName, createPlayerRequest.Sex)
 
 	// todo decode userId from userToken and generate playerId,playerToken
-	playerId := int64(10001000003)
-	userId := int64(rand.Int())
+	playerId := int64(10001000004)
+	userId := int64(2018)
 	playerToken := createPlayerRequest.UserToken
 
 	playerSession := player.(*PlayerSession)
@@ -111,7 +110,7 @@ func (p *CreatePlayerProcessor) Process(player IPlayer, req interface{}) (interf
 
 	uComponent.SetUserToken(createPlayerRequest.UserToken)
 	uComponent.SetUserId(userId)
-	uComponent.AddPlayer(playerId)
+	uComponent.SetPlayerId(playerId)
 	uComponent.Save2DB()
 
 	//player.(*PlayerSession).PlayerId = playerId

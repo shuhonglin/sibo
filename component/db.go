@@ -42,7 +42,7 @@ type RedisDbParam struct {
 
 func InitDB() {
 	var err error
-	DB_TYPE = 2
+	DB_TYPE = 1
 	if DB_TYPE == MYSQL_TYPE {
 		// 从配置文件中读取
 		sqlDbParam := &SqlDbParam{
@@ -50,9 +50,9 @@ func InitDB() {
 			host:       "127.0.0.1",
 			port:       3306,
 			urlParam:   "",
-			user:       "linshuhong",
-			password:   "feiyin",
-			db:         "fairy_cms",
+			user:       "hackway",
+			password:   "0663",
+			db:         "test",
 		}
 		//SQL_DB, err = sqlx.Open("mysql", "linshuhong:feiyin@tcp(127.0.0.1:3306)/fairy_cms?charset=utf8")
 		SQL_DB, err = sqlx.Open(sqlDbParam.driverName, sqlDbParam.user+":"+sqlDbParam.password+"@tcp("+sqlDbParam.host+":"+strconv.Itoa(sqlDbParam.port)+")/"+sqlDbParam.db+"?"+sqlDbParam.urlParam)
@@ -72,6 +72,7 @@ func InitDB() {
 			maxActive:   10,
 			idleTimeout: 180 * time.Second,
 			db:          1,
+			authPswd:"mac_redis",
 		}
 		REDIS_DB = &redis.Pool{
 			MaxIdle:     redisDbParam.maxIdle,
