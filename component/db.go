@@ -42,7 +42,7 @@ type RedisDbParam struct {
 
 func InitDB() {
 	var err error
-	DB_TYPE = 1
+	DB_TYPE = 2
 	if DB_TYPE == MYSQL_TYPE {
 		// 从配置文件中读取
 		sqlDbParam := &SqlDbParam{

@@ -18,6 +18,7 @@ func (p *PlayerComponent) InitComponent(playerId int64) {
 	p.dbSaveProxy = p
 	p.playerId = playerId
 	p.keyPrefix = "player_"
+	p.selectSql = "SELECT * FROM tb_player where playerId=? LIMIT 1"
 	if p.init == false {
 		p.playerEntity = &entity.Player{}
 		p.init = true
@@ -40,20 +41,20 @@ func (p PlayerComponent) GetType() reflect.Type {
 func (p *PlayerComponent) save2SqlDB() error {
 	log.Info("save to sql database")
 	//insertSql := "REPLACE INTO tb_skill(skillId, playerId, hole) VALUES (:skillId, :playerId, :hole)"
-	insertSql := "REPLACE INTO tb_player("
-	nameValues := p.playerEntity.GetStructMap()
-	names := make([]string, len(nameValues))
-	values := make([]string, len(nameValues))
-	i:=0
-	for k := range nameValues {
-		names[i] = strings.ToLower(k)
-		values[i] = ":"+names[i]
-		i++
+	if p.insertSql=="" {
+		nameValues := p.playerEntity.GetStructMap()
+		names := make([]string, 0, len(nameValues))
+		values := make([]string, 0, len(nameValues))
+		for k := range nameValues {
+			val := strings.ToLower(k)
+			names = append(names, val)
+			values = append(values, ":"+val)
+		}
+		p.insertSql = "REPLACE INTO tb_player("+strings.Join(names, ",")+") VALUES (" + strings.Join(values,",")+")"
 	}
-	insertSql += strings.Join(names, ",")+") VALUES (" + strings.Join(values,",")+")"
-	log.Info(insertSql)
+	log.Info(p.insertSql)
 	tx := SQL_DB.MustBegin()
-	_,err:= tx.NamedExec(insertSql, p.playerEntity)
+	_,err:= tx.NamedExec(p.insertSql, p.playerEntity)
 	if err!=nil {
 		log.Error(err)
 	}
@@ -76,8 +77,7 @@ func (p *PlayerComponent) initFromSqlDB() error {
 		p.playerEntity = &entity.Player{}
 	}
 	log.Info("init player from sql db")
-	selectSql := "SELECT * FROM tb_player where playerId = ?"
-	err := SQL_DB.Select(p.playerEntity, selectSql, p.Key())
+	err := SQL_DB.Select(p.playerEntity, p.selectSql, p.Key())
 	if err != nil {
 		log.Error(err)
 	}
@@ -148,10 +148,7 @@ func (p PlayerComponent) Sex() byte {
 }
 
 func (p *PlayerComponent) SetPosition(x, y, z int) {
-	pos := make([]int, 3, 3)
-	pos[0] = x
-	pos[1] = y
-	pos[2] = z
+	pos := [3]int{x,y,z}
 	jsonData,_ := json.Marshal(pos)
 	p.playerEntity.Pos = string(jsonData)
 }

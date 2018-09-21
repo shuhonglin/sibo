@@ -12,6 +12,7 @@ func (u User) GetStructMap() map[string]interface{} {
 	return u.Base.GetStructMap(u)
 }
 
+/*
 func (u User) GetStructFieldNames() []string {
 	return u.Base.GetStructFieldNames(u)
-}
+}*/

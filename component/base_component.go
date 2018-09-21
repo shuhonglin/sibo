@@ -38,6 +38,9 @@ type BaseComponent struct {
 	playerId  int64
 	keyPrefix string
 	dbSaveProxy IDBSaveProxy // 用于实现父类调用子类，即实现abstract class的效果
+	insertSql string
+	deleteSql string
+	selectSql string
 }
 
 func (b BaseComponent) PlayerId() int64 {

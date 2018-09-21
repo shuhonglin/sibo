@@ -14,6 +14,7 @@ func (p Player) GetStructMap() map[string]interface{} {
 	return p.Base.GetStructMap(p)
 }
 
+/*
 func (p Player) GetStructFieldNames() []string {
 	return p.Base.GetStructFieldNames(p)
-}
+}*/

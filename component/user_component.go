@@ -18,6 +18,7 @@ func (u *UserComponent) InitComponent(playerId int64) {
 	u.dbSaveProxy = u
 	u.playerId = playerId
 	u.keyPrefix = "user_"
+	u.selectSql = "SELECT * FROM tb_user where playerId=? LIMIT 1"
 	if u.init == false {
 		u.userEntity = &entity.User{}
 		u.init = true
@@ -40,20 +41,20 @@ func (u UserComponent) GetType() reflect.Type {
 
 func (u *UserComponent) save2SqlDB() error {
 	log.Info("save usercomponent to sql db")
-	insertSql := "REPLACE INTO tb_user("
-	nameValues := u.userEntity.GetStructMap()
-	names := make([]string, len(nameValues))
-	values := make([]string, len(nameValues))
-	i:=0
-	for k := range nameValues {
-		names[i] = strings.ToLower(k)
-		values[i] = ":"+names[i]
-		i++
+	if u.insertSql == "" {
+		nameValues := u.userEntity.GetStructMap()
+		names := make([]string, 0, len(nameValues))
+		values := make([]string, 0, len(nameValues))
+		for k := range nameValues {
+			val := strings.ToLower(k)
+			names = append(names, val)
+			values = append(values, ":"+val)
+		}
+		u.insertSql = "REPLACE INTO tb_user("+strings.Join(names, ",")+") VALUES (" + strings.Join(values,",")+")"
 	}
-	insertSql += strings.Join(names, ",")+") VALUES (" + strings.Join(values,",")+")"
-	log.Info(insertSql)
+	log.Info(u.insertSql)
 	tx := SQL_DB.MustBegin()
-	_, err := tx.NamedExec(insertSql, u.userEntity)
+	_, err := tx.NamedExec(u.insertSql, u.userEntity)
 	if err!=nil {
 		log.Error(err)
 	}
@@ -75,8 +76,7 @@ func (u *UserComponent) initFromSqlDB() error {
 	if u.userEntity == nil {
 		u.userEntity = &entity.User{}
 	}
-	selectSql := "SELECT * FROM tb_user where playerId = ?"
-	err := SQL_DB.Select(u.userEntity, selectSql, u.Key())
+	err := SQL_DB.Select(u.userEntity, u.selectSql, u.Key())
 	if err != nil {
 		log.Error(err)
 	}

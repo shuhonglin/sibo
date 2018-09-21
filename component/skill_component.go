@@ -1,10 +1,13 @@
 package component
 
 import (
-	"github.com/deckarep/golang-set"
 	log "github.com/sirupsen/logrus"
 	"reflect"
 	"sibo/entity"
+	"strings"
+	"github.com/jmoiron/sqlx"
+	"encoding/json"
+	"github.com/garyburd/redigo/redis"
 )
 
 type SkillComponent struct {
@@ -17,6 +20,8 @@ func (s *SkillComponent) InitComponent(playerId int64) {
 	s.dbSaveProxy = s
 	s.playerId = playerId
 	s.keyPrefix = "skill_"
+	s.selectSql = "SELECT * FROM tb_skill WHERE playerId=?"
+	s.deleteSql = "DELETE FROM tb_skill WHERE playerId="+s.Key()+" AND skillId IN (?)"
 	if s.init == false {
 		s.MapComponent.InitComponent(playerId)
 		s.skillMap = make(map[int]*entity.Skill)
@@ -47,49 +52,75 @@ func (s SkillComponent) GetType() reflect.Type {
 }*/
 
 func (s *SkillComponent) save2SqlDB() error {
-	for _, v := range s.skillMap {
-		v.GetStructMap(v)
+	if len(s.skillMap)>0 {
+		tx := SQL_DB.MustBegin()
+		for _, v := range s.skillMap {
+			if s.insertSql == "" {
+				nameValues := v.GetStructMap()
+				names := make([]string, 0, len(nameValues))
+				values := make([]string, 0, len(nameValues))
+				for k := range nameValues {
+					val := strings.ToLower(k)
+					names = append(names, val)
+					values = append(values, ":"+val)
+				}
+				s.insertSql = "REPLACE INTO tb_skill ("+strings.Join(names, ",")+") VALUES (" + strings.Join(values,",")+")"
+			}
+			_,err:= tx.NamedExec(s.insertSql, v)
+			if err!=nil {
+				log.Errorln(err)
+			}
+		}
+		if s.delSet.Cardinality() > 0 {
+			query, args, err := sqlx.In(s.deleteSql, s.delSet.ToSlice())
+			if err != nil {
+				log.Errorln(err)
+			}
+			query = SQL_DB.Rebind(query)
+			tx.Exec(query, args)
+		}
+		tx.Commit()
+		log.Println("save component to database")
 	}
-	log.Println("save component to database")
-	if s.addSet.Intersect(s.delSet).Cardinality() > 0 {
+
+	/*if s.addSet.Intersect(s.delSet).Cardinality() > 0 {
 		log.Warn("addSet 与 delSet冲突")
 	}
 	s.deleteEntityFromDB()
 	s.saveNewEntityToDB()
-	s.saveUpdateEntityToDB()
+	s.saveUpdateEntityToDB()*/
 	return nil
 }
 
 func (s *SkillComponent) save2NoSqlDB() error {
 	log.Info("save skill to nosql db")
+	jsonData, _ := json.Marshal(s.skillMap)
+	reply, err := REDIS_DB.Get().Do("SET", s.Key(), jsonData)
+	log.Println(reply, err)
 	return nil
 }
 
 func (s *SkillComponent) initFromSqlDB() error {
-	if s.updateSet == nil {
-		s.updateSet = mapset.NewSet()
+	// execute selectSql
+	log.Println(s.selectSql)
+
+	var skills []entity.Skill
+	err := SQL_DB.Select(&skills, s.selectSql, s.playerId)
+	if err != nil {
+		log.Errorf("初始化玩家{%d}技能错误", s.playerId)
 	}
-	if s.addSet == nil {
-		s.addSet = mapset.NewSet()
+	for _, skill := range skills {
+		s.skillMap[skill.SkillId] = &skill
 	}
-	if s.delSet == nil {
-		s.delSet = mapset.NewSet()
-	}
-	s.loadAllEntityFromDB()
 	log.Println("init skill map from sql db")
 	return nil
 }
 func (s *SkillComponent) initFromNoSqlDB() error {
-	if s.updateSet == nil {
-		s.updateSet = mapset.NewSet()
+	jsonData, err := redis.Bytes(REDIS_DB.Get().Do("GET", s.Key()))
+	if err != nil {
+		return err
 	}
-	if s.addSet == nil {
-		s.addSet = mapset.NewSet()
-	}
-	if s.delSet == nil {
-		s.delSet = mapset.NewSet()
-	}
-	log.Println("init skill map from nosql db")
+	json.Unmarshal(jsonData, s.skillMap)
 	return nil
 }
 
@@ -152,7 +183,7 @@ func (s *SkillComponent) SetInit(init bool) {
 	s.init = init
 }
 
-func (s *SkillComponent) loadAllEntityFromDB() {
+/*func (s *SkillComponent) loadAllEntityFromDB() {
 	selectSql := "SELECT * FROM tb_skill where playerId = ?"
 	if s.skillMap == nil {
 		s.skillMap = make(map[int]*entity.Skill)
@@ -168,9 +199,9 @@ func (s *SkillComponent) loadAllEntityFromDB() {
 	for _, skill := range skills {
 		s.skillMap[skill.SkillId] = &skill
 	}
-}
+}*/
 
-func (s *SkillComponent) saveUpdateEntityToDB() {
+/*func (s *SkillComponent) saveUpdateEntityToDB() {
 	//realUpdateSet := s.updateSet.Difference(s.delSet)
 	if s.updateSet.Cardinality() > 0 {
 		updateSql := "UPDATE tb_skill SET hole=:hole WHERE playerId=:playerId AND skillId=:skillId"
@@ -188,9 +219,9 @@ func (s *SkillComponent) saveUpdateEntityToDB() {
 		// execute updatesql
 		log.Println(updateSql)
 	}
-}
+}*/
 
-func (s *SkillComponent) saveNewEntityToDB() {
+/*func (s *SkillComponent) saveNewEntityToDB() {
 	//realAddSet := s.addSet.Difference(s.delSet)
 	// 可优化转化为批量插入
 	if s.addSet.Cardinality() > 0 {
@@ -207,9 +238,9 @@ func (s *SkillComponent) saveNewEntityToDB() {
 		// execute insertsql
 		log.Println(insertSql)
 	}
-}
+}*/
 
-func (s *SkillComponent) deleteEntityFromDB() {
+/*func (s *SkillComponent) deleteEntityFromDB() {
 	if s.delSet.Cardinality() > 0 {
 		delSlice := s.delSet.ToSlice()
 		delSql := "DELETE FROM tb_skill WHERE playerId= ? AND skillId IN(?)"
@@ -227,4 +258,4 @@ func (s *SkillComponent) deleteEntityFromDB() {
 		// execute delSql
 		log.Println(delSql)
 	}
-}
+}*/
